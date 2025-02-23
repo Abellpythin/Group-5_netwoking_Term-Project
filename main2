@@ -1,0 +1,115 @@
+# Send Everything universally through bits
+# Encoding is faster however images should not be encoded in utf-8
+# By sending everything through bits this process is avoided
+
+import socket
+import threading
+from Classes import Peer
+from Classes import Server
+import os
+
+
+# After running any socket, wait at least 30 seconds or else you'll get this error
+# OSError: [Errno 48] Address already in use
+def main():
+    """
+    The main method will be used for io operations, managing threads, and creating classes.
+    :return:
+    """
+    
+
+    # Make sure when creating "Thread" not to include (). You are not calling the method
+    serverThread = threading.Thread(target=runServer, daemon=True)
+    peerThread = threading.Thread(target=runPeer, daemon=True)
+
+    peerThread.start()
+    serverThread.start()
+
+    serverThread.join()
+    peerThread.join()
+
+    print("Complete!")
+
+
+def runServer():
+    myServer = Server()
+    with myServer.createTCPSocket() as server_socket:
+        server_socket.listen(1)
+        print("Server: Listening for connections...")
+
+        while True:
+            conn, addr = server_socket.accept()
+            with conn:
+                print(f"Server: Connected by {addr}")
+                while True:
+                    data = conn.recv(1024)
+                    if not data:
+                        print("Server: Connection closed by client.")
+                        break
+
+                    command = data.decode().strip().split()
+                    if not command:
+                        break
+
+                    if command[0] == "GET":
+                        # Fresh download from offset=0
+                        filename = command[1]
+                        offset = 0
+                        myServer.sendFileFromoffset(conn, filename, offset)
+                    
+                    elif command[0] == "RESUME":
+                        # Resume download from specified offset
+                        filename = command[1]
+                        offset = int(command[2])
+                        myServer.sendFileFromoffset(conn, filename, offset)
+
+                    else:
+                        print("Server: Unknown command -->", command)
+                print("Server: Done handling this client.")
+
+                
+                
+
+
+def runPeer():
+   myPeer = Peer()
+   filename = "testfile.txt"
+   
+   with myPeer.createTCPSocket() as peer_socket:
+        peer_socket.connect(myPeer.address)
+
+        offset = 0
+        # Only call getsize if the file already exists
+        if os.path.exists(filename):
+            offset = os.path.getsize(filename)
+
+        # If we have some of the file, RESUME. Otherwise GET fresh.
+        if offset > 0:
+            print(f"Peer: Resuming {filename} from byte offset {offset}.")
+            resume_cmd = f"RESUME {filename} {offset}"
+            peer_socket.sendall(resume_cmd.encode())
+        else:
+            print(f"Peer: Requesting fresh download of {filename}.")
+            get_cmd = f"GET {filename}"
+            peer_socket.sendall(get_cmd.encode())
+
+        # Receive the data, appending if partial file already exists
+        with open(filename, 'ab') as f:
+            while True:
+                chunk = peer_socket.recv(1024)
+                if not chunk:
+                    break
+                f.write(chunk)
+
+        final_size = os.path.getsize(filename)
+        print(f"Peer: Download complete. Received {final_size} bytes total for {filename}.")
+               
+
+
+           
+        
+    
+
+
+if __name__ == '__main__':
+    main()
