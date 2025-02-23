@@ -16,13 +16,7 @@ def main():
     The main method will be used for io operations, managing threads, and creating classes.
     :return:
     """
-    # Implement later and make sure to add try and catch blocks
-    print("What is your name?")
-    userRealName = input()
 
-    # Implement Later
-    print("Input a file name: ")
-    fileName = input()
 
     # Make sure when creating "Thread" not to include (). You are not calling the method
     serverThread = threading.Thread(target=runServer, daemon=True)
@@ -60,7 +54,7 @@ def runPeer():
         peer_socket.sendall("Please Work".encode())
         response = peer_socket.recv(1024)
 
-        print("Peer Received Response: {", response.decode(), "}",sep="")
+        print("Peer Received Response: {", response.decode(), "}", sep="")
 
 
 if __name__ == '__main__':
