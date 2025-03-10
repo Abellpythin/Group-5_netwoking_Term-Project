@@ -75,3 +75,35 @@ if __name__ == "__main__":
 
     # Example: Broadcast a message to all peers
     peer.broadcast_data("Hello, this is a broadcast message!")
+
+
+    '''Documentation and Notes:
+The peer initial list is a list of known peers that a new peer can 
+connect to when it joins the network. 
+This list can be hardcoded, loaded from a file, or discovered dynamically.
+
+Method List:
+The method list includes functions for:
+Peer Discovery: Finding other peers in the network.
+Data Sharing: Sending and receiving data between peers.
+Connection Management: Handling connections and disconnections.
+Peer Initial List: The initial_peers list contains the IP addresses and ports of known peers.
+This list can be expanded or modified dynamically.
+
+P2PNetwork Class:
+__init__: Initializes the peer with its IP and port, sets up the server socket, 
+and starts listening for incoming connections.
+
+start: Starts the peer by accepting incoming connections and connecting to known peers.
+accept_connections: Listens for incoming connections and spawns a new thread to handle each client.
+handle_client: Handles communication with a connected client.
+connect_to_peers: Connects to all known peers in the initial list.
+send_data: Sends data to a specific peer.
+broadcast_data: Sends data to all known peers.
+    
+Notes
+lacks  features for a robust P2P network, such as peer discovery, NAT traversal, and security.
+The peer list is a static example, but in a real-world application, 
+it should be dynamic and updated as peers join or leave the network.
+Error handling and logging should be added for production use.
+'''
