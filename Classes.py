@@ -3,8 +3,10 @@ import socket
 from datetime import datetime
 from enum import Enum
 
+# Will it contain names? Just addresses?
+G_peerList: list = []
 
-
+# Enumerations are used to guarantee consistent strings for communication between sockets
 class CRequest(Enum):
     """
     Enumeration that contains strings that the client can send to the server.
@@ -62,10 +64,11 @@ class Peer:
         """
         self.socket.send(CRequest.PeerList.name.encode)
 
-    def sendRequest(self):
-
+    def fileRequest(self):
         # Send in chunks? What's the format? How to turn it back to list?
         # Start client side and come back to solve problems
+        return
+
     def validConnection(self, serverResponse: str) -> bool:
         return serverResponse == SResponse.Connected.name
 
@@ -84,8 +87,9 @@ class Server:
         return self.socket
 
 # A client could request a file, peer list, etc. This is not exclusively for files
-    def clientRequest(self, clientSocket: socket, addr: tuple) -> bool:
+    def clientRequest(self, clientSocket: socket) -> bool:
         """
+        This reads the client's request message and calls the proper method to handle it
         This will need to be updated as CRequest gets updated
         :param clientSocket:
         :param addr:
@@ -93,16 +97,44 @@ class Server:
         """
         requestHandled = True
         data = clientSocket.recv()
+        # Matching string with string
         match data:
-            case CRequest.ConnectRequest:
-                # call method
-            case CRequest.PeerList:
-                # call method
-            case CRequest.RequestFile:
-                # call method
+            case CRequest.ConnectRequest.name:
+                requestHandled = self.confirmConnection(clientSocket)
+            case CRequest.PeerList.name:
+                requestHandled = self.sendPeerList(clientSocket)
+            case CRequest.RequestFile.name:
+                requestHandled = self.sendRequestedFile(clientSocket)
             case _:
-                requesthandled = False
-        return False
+                requestHandled = False
+
+        return requestHandled
+
+    def confirmConnection(self, clientSocket: socket) -> bool:
+        success = True
+        try:
+            clientSocket.send(SResponse.Connected.name)
+        # Broad error, try to narrow later
+        except OSError as err:
+            success = False
+            print(err)
+        finally:
+            return success
+
+    def sendPeerList(self, clientSocket: socket) -> bool:
+        # To be implemented
+        return True
+
+    def sendRequestedFile(self, clientSocket: socket):
+        """
+        This will send the requested file
+        Any file in the peer's file list is open to be requested and sent. There will be no confirmation
+        message after it is added.
+        :return:
+        """
+        # To be implemented
+        return True
+
 
 
 class File:

@@ -86,8 +86,6 @@ def runServer():
 # Peer in front a print statement indicates the Peer sent it
 def runPeer():
 
-
-
     # myPeer = Peer()
     # with myPeer.createTCPSocket() as peer_socket:
     #     peer_socket.connect(('127.0.0.1', 5001))
@@ -96,15 +94,28 @@ def runPeer():
     #     response = peer_socket.recv(1024)
     #
     #     print("Peer Received Response: {", response.decode(), "}", sep="")
+    return
 
 
 def initialConnect(ip: str, port: int):
+    """
+    initialConnect is used to connect the client to a peer in order to get the current list of peers
+    available in the network.
+    -IF ONE PEER IS IN THE NETWORK NO THEY CANNOT CONNECT TO A PEER
+    -IF TWO PEERS ARE IN THE NETWORK THEN THERE'S ONLY TWO PEOPLE
+    -IF ONE PERSON CONNECTS TO A PEER WITH A LIST OF PEERS THEN THEY ARE ADDED TO THE NETWORK AND THE LIST
+     IS UPDATED AMONG PEERS
+    :param ip:
+    :param port:
+    :return:
+    """
     # Create Peer class for user
     selfPeer = Peer(address=(G_MY_IP, G_MY_PORT))
 
     #Add a while loop to keep asking for ip and port if error occurs
     with selfPeer.createTCPSocket() as peer_socket:
         # When locally testing, '127.0.0.1' or '0.0.0.0' should be used
+        # inputs needs to be put into a separate function so it can run as a thread
         serverIP: str = input("Type the Ip address of server: ")
         serverPort: int = int(input("Type the Port number of server: "))
         try:
@@ -123,6 +134,8 @@ def initialConnect(ip: str, port: int):
         except (TimeoutError, InterruptedError) as err:
             print(err)
             print("Connection did not go through. Check the Client IP and Port")
+
+    return
 
 def getUserInput(inputQueue):
     """
