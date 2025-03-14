@@ -9,16 +9,22 @@ import threading
 from Classes import Peer
 from Classes import Server
 from Classes import CRequest
+from Classes import PeerList
+from Classes import FileList
+from Classes import G_peerList
 import os
 
 
 # G for global variable
-G_MY_PORT = 12000
-G_MY_IP = '127.0.0.1'
-G_MAX_CONNECTIONS = 5
+G_MY_PORT: int = 12000
+G_MY_IP: str = '127.0.0.1'
+G_MY_USERNAME: str | None = None
+G_MAX_CONNECTIONS: str = 5
 
-# The user
-G_ENDPROGRAM = False
+
+# When the user wants to end the program this variable changes to True and
+# runClient, runServer, and Main terminate
+G_ENDPROGRAM: bool = False
 
 # After running any socket, wait at least 30 seconds or else you'll get this error
 # OSError: [Errno 48] Address already in use
@@ -27,6 +33,9 @@ def main():
     The main method will be used for io operations, managing threads, and creating classes.
     :return:
     """
+    # Needs to be put in a separate thread
+    global G_MY_USERNAME
+    G_MY_USERNAME = input("Input your username: ")
 
     # Make sure when creating "Thread" not to include (). You are not calling the method
     serverThread = threading.Thread(target=runServer, daemon=True)
@@ -111,6 +120,7 @@ def initialConnect(ip: str, port: int):
     """
     # Create Peer class for user
     selfPeer = Peer(address=(G_MY_IP, G_MY_PORT))
+    G_peerList.append(PeerList((G_MY_IP, G_MY_PORT), G_MY_USERNAME))
 
     #Add a while loop to keep asking for ip and port if error occurs
     with selfPeer.createTCPSocket() as peer_socket:
@@ -124,7 +134,7 @@ def initialConnect(ip: str, port: int):
             peer_socket.send(CRequest.ConnectRequest.name.encode())
 
             # Receive message from server confirming connection
-            data, address = peer_socket.recvfrom()  # recvfrom in hopes of adding security features later
+            data = peer_socket.recv()  # recvfrom in hopes of adding security features later
             data = data.decode()
 
             # Server implementation will send the string 'Server: Connected'
