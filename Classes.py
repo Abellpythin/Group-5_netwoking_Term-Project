@@ -9,6 +9,10 @@ G_BUFFER = 2500000  # 2.5 mB
 G_peerList: list[PeerList] = []
 
 
+def peerListAppend(peerList: PeerList):
+    if peerList not in G_peerList:
+        G_peerList.append(peerList)
+
 # Enumerations are used to guarantee consistent strings for communication between sockets
 class CRequest(Enum):
     """
@@ -105,13 +109,21 @@ class Server:
         :return:
         """
         requestHandled = True
-        data = clientSocket.recv()
+
+        # Client Request, Client's PeerList object
+        data: str = clientSocket.recv().decode()
+        seperator = data.find(",")
+        clientRequest = data[:seperator]
+        userPeerList = peerList_from_dict(json.loads(data[seperator + 1:]))
+
+        # Adds the peer to the network if the peer hasn't already joined
+        peerListAppend(userPeerList)
+
         # Matching string with string
-        match data:
+        match clientRequest:
             case CRequest.ConnectRequest.name:
                 requestHandled = self.confirmConnection(clientSocket)
             case CRequest.PeerList.name:
-                
                 requestHandled = self.sendPeerList(clientSocket)
             case CRequest.RequestFile.name:
                 requestHandled = self.sendRequestedFile(clientSocket)

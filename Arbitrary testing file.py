@@ -1,5 +1,7 @@
 from Classes import CRequest
 from Classes import PeerList
+from Classes import peerListAppend
+from Classes import G_peerList
 import json
 
 peer = PeerList(('0.0.0.0', 12000), 'CoolGuy')
@@ -41,4 +43,11 @@ print(json_data)
 
 received_objects = [peerList_from_dict(item) for item in json.loads(json_data)]
 print(received_objects)
+
+send_str = CRequest.ConnectRequest.name + "," + json.dumps(peer.__dict__())
+seperator = send_str.find(",")
+clientRequest = send_str[:seperator]
+userPeerList = peerList_from_dict(json.loads(send_str[seperator + 1:]))
+peerListAppend(userPeerList)
+peerListAppend(userPeerList)
 

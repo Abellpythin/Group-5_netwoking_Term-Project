@@ -6,6 +6,7 @@
 
 import socket
 import threading
+import json
 from Classes import Peer
 from Classes import Server
 from Classes import CRequest
@@ -120,7 +121,8 @@ def initialConnect(ip: str, port: int):
     """
     # Create Peer class for user
     selfPeer = Peer(address=(G_MY_IP, G_MY_PORT))
-    G_peerList.append(PeerList((G_MY_IP, G_MY_PORT), G_MY_USERNAME))
+    userPeer = PeerList((G_MY_IP, G_MY_PORT), G_MY_USERNAME)
+    G_peerList.append(userPeer)
 
     #Add a while loop to keep asking for ip and port if error occurs
     with selfPeer.createTCPSocket() as peer_socket:
@@ -130,8 +132,9 @@ def initialConnect(ip: str, port: int):
         serverPort: int = int(input("Type the Port number of server: "))
         try:
             peer_socket.connect((serverIP, serverPort))
-            # Send message to server asking to connect
-            peer_socket.send(CRequest.ConnectRequest.name.encode())
+            # Send message to server asking to connect and user's PeerList info
+            send_str = CRequest.ConnectRequest.name + "," + json.dumps(userPeer.__dict__())
+            peer_socket.send(send_str.encode())
 
             # Receive message from server confirming connection
             data = peer_socket.recv()  # recvfrom in hopes of adding security features later
