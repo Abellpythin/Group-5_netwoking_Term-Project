@@ -105,8 +105,7 @@ class Server:
         This reads the client's request message and calls the proper method to handle it
         This will need to be updated as CRequest gets updated
         :param clientSocket:
-        :param addr:
-        :return:
+        :return: True if Client Request is handled, False otherwise
         """
         requestHandled = True
 

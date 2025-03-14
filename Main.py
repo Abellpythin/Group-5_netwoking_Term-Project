@@ -109,8 +109,8 @@ def runPeer():
 
 def initialConnect(ip: str, port: int):
     """
-    initialConnect is used to connect the client to a peer in order to get the current list of peers
-    available in the network.
+    The inital connection will try to connect to an online peer. If successful it will retrieve a list
+    of peers in the network with their address and username.
     -IF ONE PEER IS IN THE NETWORK NO THEY CANNOT CONNECT TO A PEER
     -IF TWO PEERS ARE IN THE NETWORK THEN THERE'S ONLY TWO PEOPLE
     -IF ONE PERSON CONNECTS TO A PEER WITH A LIST OF PEERS THEN THEY ARE ADDED TO THE NETWORK AND THE LIST
@@ -124,7 +124,7 @@ def initialConnect(ip: str, port: int):
     userPeer = PeerList((G_MY_IP, G_MY_PORT), G_MY_USERNAME)
     G_peerList.append(userPeer)
 
-    #Add a while loop to keep asking for ip and port if error occurs
+    # !!!! Add a while loop to keep asking for ip and port if error occurs
     with selfPeer.createTCPSocket() as peer_socket:
         # When locally testing, '127.0.0.1' or '0.0.0.0' should be used
         # inputs needs to be put into a separate function so it can run as a thread
@@ -132,7 +132,9 @@ def initialConnect(ip: str, port: int):
         serverPort: int = int(input("Type the Port number of server: "))
         try:
             peer_socket.connect((serverIP, serverPort))
+
             # Send message to server asking to connect and user's PeerList info
+            # This ensures the client is added to the list of peers
             send_str = CRequest.ConnectRequest.name + "," + json.dumps(userPeer.__dict__())
             peer_socket.send(send_str.encode())
 
@@ -142,6 +144,8 @@ def initialConnect(ip: str, port: int):
 
             # Server implementation will send the string 'Server: Connected'
             if selfPeer.validConnection(data):
+                # It is ok to return in a with block. The socket will close
+                return
 
 
         except (TimeoutError, InterruptedError) as err:
