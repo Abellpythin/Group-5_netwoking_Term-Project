@@ -13,6 +13,7 @@ def peerListAppend(peerList: PeerList):
     if peerList not in G_peerList:
         G_peerList.append(peerList)
 
+
 # Enumerations are used to guarantee consistent strings for communication between sockets
 class CRequest(Enum):
     """
@@ -28,6 +29,7 @@ class CRequest(Enum):
 class SResponse(Enum):
     """
     Enumeration that contains strings that the client can send to the client
+    Please keep the names simple
     """
     Connected = 0
 
@@ -65,17 +67,18 @@ class Peer:
         self.online = not self.online
         return self.online
 
-    def requestPeerList(self, serverAddress: tuple) -> list:
+    def requestPeerList(self, serverAddress: tuple) -> None:
         """
         Request List of peers from chosen serverAddress
         :param serverAddress:
         :return: List of peers currently online in network
         """
+        global G_peerList
         self.socket.send(CRequest.PeerList.name.encode)
 
         # Receive json data containing peerlist data
         data = self.socket.recv(G_BUFFER)
-        received_objects = [peerList_from_dict(item) for item in json.loads(data)]
+        G_peerList = [peerList_from_dict(item) for item in json.loads(data)]
 
     def fileRequest(self):
         # Send in chunks? What's the format? How to turn it back to list?
@@ -84,8 +87,6 @@ class Peer:
 
     def validConnection(self, serverResponse: str) -> bool:
         return serverResponse == SResponse.Connected.name
-
-
 
 
 class Server:
@@ -99,7 +100,12 @@ class Server:
         self.socket.bind(self.address)
         return self.socket
 
-# A client could request a file, peer list, etc. This is not exclusively for files
+    """
+    Future self
+    Thread safety is always a concern. Lists [] are thread safe luckily but any modifications to custom 
+    data types could be worrisome. Keep them to a minimum if not none at all
+    """
+    # A client could request a file, peer list, etc. This is not exclusively for files
     def clientRequest(self, clientSocket: socket) -> bool:
         """
         This reads the client's request message and calls the proper method to handle it
@@ -110,7 +116,7 @@ class Server:
         requestHandled = True
 
         # Client Request, Client's PeerList object
-        data: str = clientSocket.recv().decode()
+        data: str = clientSocket.recv(G_BUFFER).decode()
         seperator = data.find(",")
         clientRequest = data[:seperator]
         userPeerList = peerList_from_dict(json.loads(data[seperator + 1:]))
@@ -121,6 +127,7 @@ class Server:
         # Matching string with string
         match clientRequest:
             case CRequest.ConnectRequest.name:
+                print("Got here")
                 requestHandled = self.confirmConnection(clientSocket)
             case CRequest.PeerList.name:
                 requestHandled = self.sendPeerList(clientSocket)
@@ -135,6 +142,7 @@ class Server:
         success = True
         try:
             clientSocket.send(SResponse.Connected.name.encode())
+
         # Broad error, try to narrow later
         except OSError as err:
             success = False
@@ -162,7 +170,7 @@ class Server:
         :return:
         """
         # To be implemented
-        return True
+        return
 
 
 class File:
@@ -221,5 +229,5 @@ class FileList:
     def __str__(self):
         return f"{{{self.fileName},{self.username}}}"
 
-# For future security it might be useful to make methods that simply check the ip address
+# For future security it MIGHT be useful to make methods that check the ip address
 # Files and peer list should be separate. They can always be combined but separating is much harder
