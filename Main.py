@@ -3,18 +3,20 @@
 # By sending everything through bits this process is avoided
 # Think about limiting how many files a user can download
 # Limit how many files can be requested from one server
-
+from __future__ import annotations
 import threading
 import queue
 import time
 import json
+import Classes
 from Classes import Peer
 from Classes import Server
 from Classes import CRequest
+from Classes import SResponse
 from Classes import PeerList
 from Classes import FileList
-from Classes import G_peerList
-from Classes import G_BUFFER
+
+#from Classes import G_peerList | This does not work like c++
 import os
 
 
@@ -22,7 +24,7 @@ import os
 # The port number is preemptively defined so no need to ask user
 G_MY_PORT: int = 12000
 G_MY_IP: str = '127.0.0.1'
-G_MY_USERNAME: str | None = None
+G_MY_USERNAME: str | None = "Debugger"
 G_MAX_CONNECTIONS: int = 5
 
 
@@ -36,6 +38,7 @@ G_input_queue = queue.Queue()
 # Used to synchronize print statements among threads. Used for debugging
 G_print_lock = threading.Lock()
 
+G_peerList = Classes.G_peerList
 
 # After running any socket, wait at least 30 seconds or else you'll get this error
 # OSError: [Errno 48] Address already in use
@@ -46,39 +49,40 @@ def main():
     peer network
     """
     print("Welcome to our P2P Network", end='\n\n')
-    while True:
-        try:
-            G_MY_USERNAME = input("Enter your username: ")
-            if not G_MY_USERNAME:
-                raise ValueError("Username cannot be empty.")
-            if not G_MY_USERNAME[0].isalpha():
-                raise ValueError("Username must start with a letter.")
-            if not all(char.isalnum() or char == "_" for char in G_MY_USERNAME):
-                raise ValueError("Username can only contain letters, numbers, and underscores.")
-            if not 4 <= len(G_MY_USERNAME) <= 25:
-                raise ValueError("Username must be between 4 and 25 characters long.")
-            break
-        except ValueError as e:
-            print(f"Invalid username: {e}")
-
-    while True:
-        try:
-            ip_address = input("Enter your IP address (e.g., 127.0.0.1): ")
-            parts = ip_address.split(".")
-            if len(parts) != 4:
-                raise ValueError("IP address must have four parts separated by dots.")
-            for part in parts:
-                if not part.isdigit():
-                    raise ValueError("Each part of the IP address must be a number.")
-                if len(part) > 3:
-                    raise ValueError("Each part of the IP address must have at most 3 digits.")
-                num = int(part)
-                if num < 0 or num > 255:
-                    raise ValueError("Each part of the IP address must be between 0 and 255.")
-            print(f"Valid IP address: {ip_address}")
-            break
-        except ValueError as e:
-            print(f"Invalid IP address: {e}")
+    # Uncomment when done debugging
+    # while True:
+    #     try:
+    #         G_MY_USERNAME = input("Enter your username: ")
+    #         if not G_MY_USERNAME:
+    #             raise ValueError("Username cannot be empty.")
+    #         if not G_MY_USERNAME[0].isalpha():
+    #             raise ValueError("Username must start with a letter.")
+    #         if not all(char.isalnum() or char == "_" for char in G_MY_USERNAME):
+    #             raise ValueError("Username can only contain letters, numbers, and underscores.")
+    #         if not 4 <= len(G_MY_USERNAME) <= 25:
+    #             raise ValueError("Username must be between 4 and 25 characters long.")
+    #         break
+    #     except ValueError as e:
+    #         print(f"Invalid username: {e}")
+    #
+    # while True:
+    #     try:
+    #         ip_address = input("Enter your IP address (e.g., 127.0.0.1): ")
+    #         parts = ip_address.split(".")
+    #         if len(parts) != 4:
+    #             raise ValueError("IP address must have four parts separated by dots.")
+    #         for part in parts:
+    #             if not part.isdigit():
+    #                 raise ValueError("Each part of the IP address must be a number.")
+    #             if len(part) > 3:
+    #                 raise ValueError("Each part of the IP address must have at most 3 digits.")
+    #             num = int(part)
+    #             if num < 0 or num > 255:
+    #                 raise ValueError("Each part of the IP address must be between 0 and 255.")
+    #         print(f"Valid IP address: {ip_address}")
+    #         break
+    #     except ValueError as e:
+    #         print(f"Invalid IP address: {e}")
 
     #IMPORTANT
     # FROM THIS POINT ON ANY I/O OPERATIONS (input, open, with, etc) NEEDS TO BE IN SEPARATE THREAD
@@ -121,7 +125,15 @@ def runServer():
         threads = []
 
         while True:
+            # debugging purposes
+            #time.sleep(5)
+
             conn, addr = listening_socket.accept()  # Accepts 1 connection at a time
+
+            #Set to 60 once done debugging
+            conn.settimeout(10)
+
+
             #IMPORTANT You will feel suicidal if you don't heed this warning
             # WHEN MAKING A THREAD THAT HAS ARGUMENTS
             # ENSURE THAT IT HAS A COMMA AT THE END OF THE TUPLE
@@ -159,30 +171,61 @@ def initialConnect():
     # Create Peer class for user
     selfPeer = Peer(address=(G_MY_IP, G_MY_PORT))
     userPeer = PeerList((G_MY_IP, G_MY_PORT), G_MY_USERNAME)
-    G_peerList.append(userPeer)
 
     # !!!! Add a while loop to keep asking for ip and port if error occurs
     with selfPeer.createTCPSocket() as peer_socket:
+
+
+        #Uncomment when done debugging
         # When locally testing, '127.0.0.1' or '0.0.0.0' should be used
         # inputs needs to be put into a separate function so it can run as a thread
-        serverIP: str = input("Type the Ip address of server: ")
-        serverPort: int = int(input("Type the Port number of server: "))
+        # serverIP: str = input("Type the Ip address of server: ")
+        # serverPort: int = int(input("Type the Port number of server: "))
+
+
+        #Delete and uncomment above when done debugging
+        serverIP = '127.0.0.1'
+        serverPort = 12000
+
+
         try:
             peer_socket.connect((serverIP, serverPort))
 
-            # Send message to server asking to connect and user's PeerList info
-            # This ensures the client is added to the list of peers
-            send_str = CRequest.ConnectRequest.name + "," + json.dumps(userPeer.__dict__())
+            # Ask to connect to server
+            send_str = CRequest.ConnectRequest.name
             peer_socket.send(send_str.encode())
 
             # Receive message from server confirming connection
-            data = peer_socket.recv(G_BUFFER)
-            data = data.decode()
+            serverResponse = peer_socket.recv(Classes.G_BUFFER).decode()
 
-            # Server implementation will send the string 'Server: Connected'
-            if selfPeer.validConnection(data):
-                # It is ok to return in a with block. The socket will close
-                return
+            # For future error implementation
+            print("1. Server Response: ", serverResponse)
+            if serverResponse != SResponse.Connected.name:
+                raise Exception("Something went wrong")
+
+            # Debugging purposes
+            # time.sleep(5)
+
+            # Sends the second request adding this user into the peer network
+            send_str = CRequest.AddMe.name
+            peer_socket.send(send_str.encode())
+            serverResponse = peer_socket.recv(Classes.G_BUFFER).decode()
+
+            print("2. Server Response: ", serverResponse)
+            if serverResponse != SResponse.SendYourInfo.name:
+                raise Exception("Something went wrong")
+
+            # Sends the user's info to be added to peer list
+            jsonUserPeer = json.dumps(userPeer.__dict__())
+            peer_socket.send(jsonUserPeer.encode())
+
+            serverResponse = peer_socket.recv(Classes.G_BUFFER).decode()
+            #Debugging
+            print("Server's peer list: ", serverResponse)
+
+            Classes.G_peerList = [selfPeer.peerList_from_dict(item) for item in json.loads(serverResponse)]
+
+            print(Classes.G_peerList)
 
         except (TimeoutError, InterruptedError) as err:
             print(err)
