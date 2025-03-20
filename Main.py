@@ -49,6 +49,8 @@ def main():
     peer network
     """
     print("Welcome to our P2P Network", end='\n\n')
+
+    # ------------------------------------------------------------------------------------------------------------
     # Uncomment when done debugging
     # while True:
     #     try:
@@ -83,6 +85,8 @@ def main():
     #         break
     #     except ValueError as e:
     #         print(f"Invalid IP address: {e}")
+    # ------------------------------------------------------------------------------------------------------------
+
 
     #IMPORTANT
     # FROM THIS POINT ON ANY I/O OPERATIONS (input, open, with, etc) NEEDS TO BE IN SEPARATE THREAD
@@ -125,9 +129,6 @@ def runServer():
         threads = []
 
         while True:
-            # debugging purposes
-            #time.sleep(5)
-
             conn, addr = listening_socket.accept()  # Accepts 1 connection at a time
 
             #Set to 60 once done debugging
@@ -160,7 +161,7 @@ def runPeer():
 
 def initialConnect():
     """
-    The inital connection will try to connect to an online peer. If successful it will retrieve a list
+    The initial connection will try to connect to an online peer. If successful it will retrieve a list
     of peers in the network with their address and username.
     -IF ONE PEER IS IN THE NETWORK NO THEY CANNOT CONNECT TO A PEER
     -IF TWO PEERS ARE IN THE NETWORK THEN THERE'S ONLY TWO PEOPLE
@@ -179,11 +180,12 @@ def initialConnect():
         #Uncomment when done debugging
         # When locally testing, '127.0.0.1' or '0.0.0.0' should be used
         # inputs needs to be put into a separate function so it can run as a thread
+        # Make sure to error handle later
         # serverIP: str = input("Type the Ip address of server: ")
         # serverPort: int = int(input("Type the Port number of server: "))
 
 
-        #Delete and uncomment above when done debugging
+        #Delete this and uncomment above when done debugging
         serverIP = '127.0.0.1'
         serverPort = 12000
 
@@ -203,10 +205,8 @@ def initialConnect():
             if serverResponse != SResponse.Connected.name:
                 raise Exception("Something went wrong")
 
-            # Debugging purposes
-            # time.sleep(5)
 
-            # Sends the second request adding this user into the peer network
+            # Sends a second request asking to add this user into the peer network
             send_str = CRequest.AddMe.name
             peer_socket.send(send_str.encode())
             serverResponse = peer_socket.recv(Classes.G_BUFFER).decode()
@@ -219,10 +219,14 @@ def initialConnect():
             jsonUserPeer = json.dumps(userPeer.__dict__())
             peer_socket.send(jsonUserPeer.encode())
 
+            # Receives an updated list of peer (including this user)
             serverResponse = peer_socket.recv(Classes.G_BUFFER).decode()
+
             #Debugging
             print("Server's peer list: ", serverResponse)
 
+            # Turns the json LIST of peerList into separate peerList objects to be added to peerList
+            # Yeah I know bad name deal with it
             Classes.G_peerList = [selfPeer.peerList_from_dict(item) for item in json.loads(serverResponse)]
 
             print(Classes.G_peerList)

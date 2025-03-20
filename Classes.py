@@ -7,6 +7,9 @@ from enum import Enum
 
 # Will it contain names? Just addresses?
 G_BUFFER = 2500000  # 2.5 mB
+
+# ------------------------------------------------------------------------------------------------------------
+# Remember to add thread lock to this object. If multiple threads try to add new clients then we're doomed
 G_peerList: list[PeerList] = []
 
 
@@ -87,13 +90,13 @@ class Peer:
     def validConnection(self, serverResponse: str) -> bool:
         return serverResponse == SResponse.Connected.name
 
-    def peerList_from_dict(self, data):
+    def peerList_from_dict(self, objectAsDict):
         """
-        Unpacks Json serialization of PeerList
-        :param data:
+        Unpacks Json serialization of PeerList (not to be mistaken with G_PeerList)
+        :param objectAsDict:
         :return:
         """
-        return PeerList(**data)
+        return PeerList(**objectAsDict)
 
 
 class Server:
@@ -125,6 +128,7 @@ class Server:
         requestsHandled: bool = True
         clientRequest: str = clientSocket.recv(G_BUFFER).decode()
 
+        # a timer to ensure the server doesn't wait forever
         startTime = time.time()
         endTime = time.time()
         length = endTime - startTime
@@ -136,9 +140,10 @@ class Server:
             # Matching string with string
             match clientRequest:
                 case CRequest.ConnectRequest.name:
-                    print("I have been requested ------")
+                    print("Server: I have been requested to connect ------")
                     requestsHandled = self.confirmConnection(clientSocket)
                 case CRequest.AddMe.name:
+                    print("Server: Client wants me to add them")
                     requestsHandled = self.initialConnectionHandler(clientSocket)
                 case CRequest.PeerList.name:
                     requestsHandled = self.sendPeerList(clientSocket)
@@ -147,26 +152,29 @@ class Server:
                 case _:
                     requestsHandled = False
 
-            print("Sucessfully sent data back")
+            print("Server: Successfully sent data back")
 
             # This will timeout after 60 seconds
             #I have set timeout to 10 seconds for debugging purposes
             try:
                 clientRequest: str = clientSocket.recv(G_BUFFER).decode()
             except TimeoutError as e:
+                # If we timeout then good, the while loop will simply end
+                # The socket timeout is equivalent to the function timer so no worries
                 continue
 
             endTime = time.time()
             length = endTime - startTime
 
-
         return requestsHandled
 
 
     def initialConnectionHandler(self, clientSocket: socket) -> bool:
+        # Ask client to Send their PeerList describing themselves
         sendStr = SResponse.SendYourInfo.name
         clientSocket.send(sendStr.encode())
 
+        # The client's PeerList object describing themselves
         clientResponse: str = clientSocket.recv(G_BUFFER).decode()
         print("Server client peer data: ", clientResponse)
         clientPeer = peerList_from_dict(json.loads(clientResponse))
@@ -174,23 +182,22 @@ class Server:
         # Puts the peer in peerlist if not currently in peerlist
         G_peerList.append(clientPeer) if clientPeer not in G_peerList else None
 
-        #Send back peer list
-        completed: bool = self.sendPeerList(clientSocket)
-        return completed
+        #Send back this server's G_peerList
+        self.sendPeerList(clientSocket)
 
-    def sendPeerList(self, clientSocket: socket) -> bool:
-        # peerListStr = ""
-        # for peer in G_peerList:
-        #     peerListStr += str(peer) + ","
-        # peerListStr.removesuffix(',')
+        return True
 
+    def sendPeerList(self, clientSocket: socket):
+
+        # Adding this to show on local clients that it will send the whole list
+        # Remember, on local clients both the server and client have the same username, ip, and port
         #REMOVE LATER DEBUGGING
         G_peerList.append(PeerList(('Debugging', 12000), "Let's Go"))
 
         json_data = json.dumps([peer.__dict__() for peer in G_peerList])
+
         # Change to send in chunks perhaps
         clientSocket.send(json_data.encode())
-        return True
 
     def confirmConnection(self, clientSocket: socket) -> bool:
         success = True
