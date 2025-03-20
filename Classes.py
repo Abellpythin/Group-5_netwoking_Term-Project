@@ -1,6 +1,7 @@
 from __future__ import annotations
 import json
 import socket
+import time
 from datetime import datetime
 from enum import Enum
 
@@ -8,10 +9,6 @@ from enum import Enum
 G_BUFFER = 2500000  # 2.5 mB
 G_peerList: list[PeerList] = []
 
-
-def peerListAppend(peerList: PeerList):
-    if peerList not in G_peerList:
-        G_peerList.append(peerList)
 
 
 # Enumerations are used to guarantee consistent strings for communication between sockets
@@ -22,8 +19,9 @@ class CRequest(Enum):
     """
     # Ex: CRequest.PeerList.name |  to get string name of enum
     ConnectRequest = 0
-    PeerList = 1
-    RequestFile = 2
+    AddMe = 2
+    PeerList = 3
+    RequestFile = 4
 
 
 class SResponse(Enum):
@@ -31,7 +29,8 @@ class SResponse(Enum):
     Enumeration that contains strings that the client can send to the client
     Please keep the names simple
     """
-    Connected = 0
+    Connected = 0  # Handles standard connection
+    SendYourInfo = 1  # Handles initial connection (adds peer to peerlist)
 
 
 class Peer:
@@ -88,6 +87,14 @@ class Peer:
     def validConnection(self, serverResponse: str) -> bool:
         return serverResponse == SResponse.Connected.name
 
+    def peerList_from_dict(self, data):
+        """
+        Unpacks Json serialization of PeerList
+        :param data:
+        :return:
+        """
+        return PeerList(**data)
+
 
 class Server:
     # Default should be set to macbook's actual ip later
@@ -108,35 +115,82 @@ class Server:
     # A client could request a file, peer list, etc. This is not exclusively for files
     def clientRequest(self, clientSocket: socket) -> bool:
         """
-        This reads the client's request message and calls the proper method to handle it
+        This reads the client's request message and calls the proper method to handle it. It will remain
+        open until the timer times out
         This will need to be updated as CRequest gets updated
         :param clientSocket:
         :return: True if Client Request is handled, False otherwise
         """
-        requestHandled = True
+        # If ever false, something went wrong
+        requestsHandled: bool = True
+        clientRequest: str = clientSocket.recv(G_BUFFER).decode()
 
-        # Client Request, Client's PeerList object
-        data: str = clientSocket.recv(G_BUFFER).decode()
-        seperator = data.find(",")
-        clientRequest = data[:seperator]
-        userPeerList = peerList_from_dict(json.loads(data[seperator + 1:]))
+        startTime = time.time()
+        endTime = time.time()
+        length = endTime - startTime
 
-        # Adds the peer to the network if the peer hasn't already joined
-        peerListAppend(userPeerList)
+        while (length < 60) and (requestsHandled):
+            # Reset everytime a successful connection occurs
+            startTime = time.time()
 
-        # Matching string with string
-        match clientRequest:
-            case CRequest.ConnectRequest.name:
-                print("Got here")
-                requestHandled = self.confirmConnection(clientSocket)
-            case CRequest.PeerList.name:
-                requestHandled = self.sendPeerList(clientSocket)
-            case CRequest.RequestFile.name:
-                requestHandled = self.sendRequestedFile(clientSocket)
-            case _:
-                requestHandled = False
+            # Matching string with string
+            match clientRequest:
+                case CRequest.ConnectRequest.name:
+                    print("I have been requested ------")
+                    requestsHandled = self.confirmConnection(clientSocket)
+                case CRequest.AddMe.name:
+                    requestsHandled = self.initialConnectionHandler(clientSocket)
+                case CRequest.PeerList.name:
+                    requestsHandled = self.sendPeerList(clientSocket)
+                case CRequest.RequestFile.name:
+                    requestsHandled = self.sendRequestedFile(clientSocket)
+                case _:
+                    requestsHandled = False
 
-        return requestHandled
+            print("Sucessfully sent data back")
+
+            # This will timeout after 60 seconds
+            #I have set timeout to 10 seconds for debugging purposes
+            try:
+                clientRequest: str = clientSocket.recv(G_BUFFER).decode()
+            except TimeoutError as e:
+                continue
+
+            endTime = time.time()
+            length = endTime - startTime
+
+
+        return requestsHandled
+
+
+    def initialConnectionHandler(self, clientSocket: socket) -> bool:
+        sendStr = SResponse.SendYourInfo.name
+        clientSocket.send(sendStr.encode())
+
+        clientResponse: str = clientSocket.recv(G_BUFFER).decode()
+        print("Server client peer data: ", clientResponse)
+        clientPeer = peerList_from_dict(json.loads(clientResponse))
+
+        # Puts the peer in peerlist if not currently in peerlist
+        G_peerList.append(clientPeer) if clientPeer not in G_peerList else None
+
+        #Send back peer list
+        completed: bool = self.sendPeerList(clientSocket)
+        return completed
+
+    def sendPeerList(self, clientSocket: socket) -> bool:
+        # peerListStr = ""
+        # for peer in G_peerList:
+        #     peerListStr += str(peer) + ","
+        # peerListStr.removesuffix(',')
+
+        #REMOVE LATER DEBUGGING
+        G_peerList.append(PeerList(('Debugging', 12000), "Let's Go"))
+
+        json_data = json.dumps([peer.__dict__() for peer in G_peerList])
+        # Change to send in chunks perhaps
+        clientSocket.send(json_data.encode())
+        return True
 
     def confirmConnection(self, clientSocket: socket) -> bool:
         success = True
@@ -150,16 +204,6 @@ class Server:
         finally:
             return success
 
-    def sendPeerList(self, clientSocket: socket) -> bool:
-        # peerListStr = ""
-        # for peer in G_peerList:
-        #     peerListStr += str(peer) + ","
-        # peerListStr.removesuffix(',')
-
-        json_data = json.dumps([G_peerList.__dict__ for peerList in G_peerList])
-        # Change to send in chunks perhaps
-        clientSocket.send(json_data.encode())
-        return True
 
     def sendRequestedFile(self, clientSocket: socket):
         """
