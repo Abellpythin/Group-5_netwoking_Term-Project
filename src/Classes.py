@@ -82,7 +82,7 @@ class Peer:
         # File names cannot be duplicates so need to set path
         # Just find file name in Files directory
         for name in fileNames:
-            self.files.append(File(name, self.username))
+            self.files.append(File(name, self.username, self.address))
 
         return
 
