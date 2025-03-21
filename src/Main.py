@@ -4,20 +4,20 @@
 # Think about limiting how many files a user can download
 # Limit how many files can be requested from one server
 from __future__ import annotations
-import threading
-import queue
-import time
 import json
-import Classes
+import os
+import queue
+import threading
+import socket # For type annotation
+
+import Classes  # Classes.G_peerList
 from Classes import Peer
 from Classes import Server
 from Classes import CRequest
 from Classes import SResponse
 from Classes import PeerList
-from Classes import FileList
 
 #from Classes import G_peerList | This does not work like c++
-import os
 
 
 # G for global variable
@@ -38,12 +38,10 @@ G_input_queue = queue.Queue()
 # Used to synchronize print statements among threads. Used for debugging
 G_print_lock = threading.Lock()
 
-G_peerList = Classes.G_peerList
 
 # After running any socket, wait at least 30 seconds or else you'll get this error
 # OSError: [Errno 48] Address already in use
 def main():
-    global G_MY_USERNAME
     """
     The main method will be used for managing threads and initializing the initial connection to the 
     peer network
@@ -155,7 +153,10 @@ def runPeer():
     """
     Needs to be implemented. This will display the files to the user, show them lists of peers, allow them
     to download files etc.
+    You have to interact with the user here. No need for a gui, just assume they know what they're doing
     """
+
+
     return
 
 
@@ -171,6 +172,8 @@ def initialConnect():
     """
     # Create Peer class for user
     selfPeer = Peer(address=(G_MY_IP, G_MY_PORT))
+    selfPeer.initializeFiles()
+
     userPeer = PeerList((G_MY_IP, G_MY_PORT), G_MY_USERNAME)
 
     # !!!! Add a while loop to keep asking for ip and port if error occurs
@@ -189,16 +192,12 @@ def initialConnect():
         serverIP = '127.0.0.1'
         serverPort = 12000
 
-
         try:
             peer_socket.connect((serverIP, serverPort))
 
-            # Ask to connect to server
-            send_str = CRequest.ConnectRequest.name
-            peer_socket.send(send_str.encode())
 
-            # Receive message from server confirming connection
-            serverResponse = peer_socket.recv(Classes.G_BUFFER).decode()
+            # Ask to connect to server and Receive message from server confirming connection
+            serverResponse = clientSendRequest(peer_socket, CRequest.ConnectRequest)
 
             # For future error implementation
             print("1. Server Response: ", serverResponse)
@@ -207,9 +206,7 @@ def initialConnect():
 
 
             # Sends a second request asking to add this user into the peer network
-            send_str = CRequest.AddMe.name
-            peer_socket.send(send_str.encode())
-            serverResponse = peer_socket.recv(Classes.G_BUFFER).decode()
+            serverResponse = clientSendRequest(peer_socket, CRequest.AddMe)
 
             print("2. Server Response: ", serverResponse)
             if serverResponse != SResponse.SendYourInfo.name:
@@ -225,15 +222,37 @@ def initialConnect():
             #Debugging
             print("Server's peer list: ", serverResponse)
 
-            # Turns the json LIST of peerList into separate peerList objects to be added to peerList
-            # Yeah I know bad name deal with it
-            Classes.G_peerList = [selfPeer.peerList_from_dict(item) for item in json.loads(serverResponse)]
+            # Turns the json LIST of peerList(the class) into separate peerList(object individually)
+            # objects to be added to G_peerList(global peerlist that holds all the peers)
+            # Yeah I know bad name deal with it or change all uses of it
+            Classes.G_peerList = [Classes.peerList_from_dict(item) for item in json.loads(serverResponse)]
 
             print(Classes.G_peerList)
+
+            serverResponse = clientSendRequest(peer_socket, CRequest.SendMyFiles)
+
+            if serverResponse != SResponse.SendYourInfo.name:
+                raise Exception("Something went wrong")
+
+            fileJsonList = json.dumps([file.__dict__() for file in selfPeer.files])
+
+            peer_socket.send(fileJsonList.encode())
 
         except (TimeoutError, InterruptedError) as err:
             print(err)
             print("Connection did not go through. Check the Client IP and Port")
+
+
+def clientSendRequest(peer_socket: socket, cRequest: CRequest) -> str:
+    """
+    Sends a request to a server
+    :param peer_socket:
+    :param cRequest:
+    :return: String representing Server response
+    """
+    sendStr = cRequest.name
+    peer_socket.send(sendStr.encode())
+    return peer_socket.recv(Classes.G_BUFFER).decode()
 
 
 def get_user_input(input_queue):

@@ -1,28 +1,27 @@
 import threading
 import queue
 import time
-from Classes import CRequest
-from Classes import PeerList
-from Classes import G_peerList
+from src.Classes import CRequest
+from src.Classes import PeerList
 import json
+import os
+from pathlib import Path
 
 
-class Understand:
-    def __init__(self, integer):
-        self.number = integer
+def list_files_in_directory(directory_path):
+    try:
+        files = [f for f in os.listdir(directory_path) if os.path.isfile(os.path.join(directory_path, f))]
+        return files
+    except FileNotFoundError:
+        print("Fail")
 
-    def method(self, argument):
-        print(argument)
-
-    def noArg(self):
-        print(self.number)
-
-
-# obj = Understand(2)
-# thread = threading.Thread(target=obj.method, args=(1,))
-#
-# thread.start()
-# thread.join()
+# ../ is parent directory
+# ./ is current directory
+# / is root of current drive
+currentDirectory = Path.cwd()
+parent_of_parent_directory = currentDirectory.parent / "Files"
+fileNames = list_files_in_directory(parent_of_parent_directory)
+print(fileNames)
 
 
 
@@ -128,10 +127,3 @@ def testing():
     userPeerList = peerList_from_dict(json.loads(send_str[seperator + 1:]))
 
     print(peerList)
-
-a = 2
-x = a
-
-x = 10
-
-print(x)
