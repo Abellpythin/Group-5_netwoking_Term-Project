@@ -148,13 +148,16 @@ def runServer():
             thread.join()
 
 
-# Peer in front a print statement indicates the Peer sent it
+# This will be the only function besides main that interacts with the user
 def runPeer():
     """
     Needs to be implemented. This will display the files to the user, show them lists of peers, allow them
     to download files etc.
     You have to interact with the user here. No need for a gui, just assume they know what they're doing
     """
+
+    #todo: Request File from server
+    #todo: Disconnect from server
 
 
     return

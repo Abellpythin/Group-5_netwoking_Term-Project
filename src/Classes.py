@@ -255,7 +255,8 @@ class Server:
         If the file has been removed it will send a message saying this file is unavailable
         :return: bool
         """
-        # To be implemented
+
+        # ToDo: To be implemented
         return
 
     def receiveRequestedFiles(self, clientSocket: socket) -> bool:
