@@ -1,277 +1,370 @@
-# Send Everything universally through bits
-# Encoding is faster however images should not be encoded in utf-8
-# By sending everything through bits this process is avoided
-# Think about limiting how many files a user can download
-# Limit how many files can be requested from one server
+#!/usr/bin/env python3
+
 from __future__ import annotations
 import json
-import os
-import queue
+import socket
+import ssl   # For optional TLS
 import threading
-import socket # For type annotation
+import time
+from concurrent.futures import ThreadPoolExecutor
 
-import Classes  # Classes.G_peerList
-from Classes import Peer
-from Classes import Server
-from Classes import CRequest
-from Classes import SResponse
-from Classes import PeerList
+# Import everything from Classes
+import Classes
+from Classes import (
+    Peer, Server, CRequest, SResponse, PeerList,
+    G_peerList, G_FileList, G_BUFFER, synchronized_print, peerList_from_dict,
+    P2P_SECRET
+)
 
-#from Classes import G_peerList | This does not work like c++
-
-
-# G for global variable
-# The port number is preemptively defined so no need to ask user
+# Configuration for our local node
 G_MY_PORT: int = 12000
 G_MY_IP: str = '127.0.0.1'
-G_MY_USERNAME: str | None = "Debugger"
+G_MY_USERNAME: str = "Debugger"
 G_MAX_CONNECTIONS: int = 5
-
-
-# When the user wants to end the program this variable changes to True and
-# runClient, runServer, and Main terminate
 G_ENDPROGRAM: bool = False
 
-# Queue necessary for I/O operations
-G_input_queue = queue.Queue()
+# You can adjust this to handle concurrency
+THREAD_POOL_SIZE = 4
 
-# Used to synchronize print statements among threads. Used for debugging
-G_print_lock = threading.Lock()
+# Set to True to enable minimal TLS. You must provide your own cert and key if you do.
+USE_SSL = False
+CERTFILE = "server_cert.pem"
+KEYFILE = "server_key.pem"
 
-
-# After running any socket, wait at least 30 seconds or else you'll get this error
-# OSError: [Errno 48] Address already in use
-def main():
+def wrap_socket_for_server(sock: socket.socket) -> ssl.SSLSocket:
     """
-    The main method will be used for managing threads and initializing the initial connection to the 
-    peer network
+    Minimal TLS usage for demonstration (server side).
     """
-    print("Welcome to our P2P Network", end='\n\n')
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain(certfile=CERTFILE, keyfile=KEYFILE)
+    wrapped = context.wrap_socket(sock, server_side=True)
+    return wrapped
 
-    # ------------------------------------------------------------------------------------------------------------
-    # Uncomment when done debugging
-    # while True:
-    #     try:
-    #         G_MY_USERNAME = input("Enter your username: ")
-    #         if not G_MY_USERNAME:
-    #             raise ValueError("Username cannot be empty.")
-    #         if not G_MY_USERNAME[0].isalpha():
-    #             raise ValueError("Username must start with a letter.")
-    #         if not all(char.isalnum() or char == "_" for char in G_MY_USERNAME):
-    #             raise ValueError("Username can only contain letters, numbers, and underscores.")
-    #         if not 4 <= len(G_MY_USERNAME) <= 25:
-    #             raise ValueError("Username must be between 4 and 25 characters long.")
-    #         break
-    #     except ValueError as e:
-    #         print(f"Invalid username: {e}")
-    #
-    # while True:
-    #     try:
-    #         ip_address = input("Enter your IP address (e.g., 127.0.0.1): ")
-    #         parts = ip_address.split(".")
-    #         if len(parts) != 4:
-    #             raise ValueError("IP address must have four parts separated by dots.")
-    #         for part in parts:
-    #             if not part.isdigit():
-    #                 raise ValueError("Each part of the IP address must be a number.")
-    #             if len(part) > 3:
-    #                 raise ValueError("Each part of the IP address must have at most 3 digits.")
-    #             num = int(part)
-    #             if num < 0 or num > 255:
-    #                 raise ValueError("Each part of the IP address must be between 0 and 255.")
-    #         print(f"Valid IP address: {ip_address}")
-    #         break
-    #     except ValueError as e:
-    #         print(f"Invalid IP address: {e}")
-    # ------------------------------------------------------------------------------------------------------------
-
-
-    #IMPORTANT
-    # FROM THIS POINT ON ANY I/O OPERATIONS (input, open, with, etc) NEEDS TO BE IN SEPARATE THREAD
-    # Make sure when creating "Thread" not to include (). You are not calling the method
-    serverThread = threading.Thread(target=runServer, daemon=True)
-    serverThread.start()
-
-    initialConnect()
-
-    peerThread = threading.Thread(target=runPeer, daemon=True)
-    peerThread.start()
-
-    # Main will not conclude until both threads join so no need for infinite while loop
-    serverThread.join()
-    peerThread.join()
-
-    # try:
-    #     while G_ENDPROGRAM:
-    #         time.sleep(0.1)
-    # except KeyboardInterrupt:
-    #     print("Exiting...")
-
-    print("Complete!")
-
-
-# "Server" in front a print statement indicates the Server sent it
-# Ex: "Server: Got your message bud"
-def runServer():
+def wrap_socket_for_client(sock: socket.socket) -> ssl.SSLSocket:
     """
-    The server is run for the entire duration of the program.
-    It only ends when the user decides to end the program.
-    There should be NO IO OPERATIONS IN THE SERVER
-    :return:
+    Minimal TLS usage for demonstration (client side).
     """
-    myServer = Server((G_MY_IP, G_MY_PORT))
-
-    with myServer.createTCPSocket() as listening_socket:
-        # Continuously listens so need to put in while loop
-        listening_socket.listen(G_MAX_CONNECTIONS)
-        threads = []
-
-        while True:
-            conn, addr = listening_socket.accept()  # Accepts 1 connection at a time
-
-            #Set to 60 once done debugging
-            conn.settimeout(10)
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    context.check_hostname = False
+    context.verify_mode = ssl.CERT_NONE
+    # If you had a real CA-signed cert, you'd do:
+    # context.load_verify_locations(cafile="ca_cert.pem")
+    wrapped = context.wrap_socket(sock, server_hostname="P2PServer")
+    return wrapped
 
 
-            #IMPORTANT You will feel suicidal if you don't heed this warning
-            # WHEN MAKING A THREAD THAT HAS ARGUMENTS
-            # ENSURE THAT IT HAS A COMMA AT THE END OF THE TUPLE
-            # EX: (number, str, letter,) <-----
-            # Notice the comma at the end. This tells the method that it is an iterable
-            thread = threading.Thread(target=myServer.clientRequest, args=(conn,))
-            threads.append(thread)
-            thread.start()
-            # Create method to send in a thread
-            break
-
-        for thread in threads:
-            thread.join()
-
-
-# Peer in front a print statement indicates the Peer sent it
-def runPeer():
+def clientSendRequest(peer_socket: socket.socket, cRequest: CRequest) -> str:
     """
-    Needs to be implemented. This will display the files to the user, show them lists of peers, allow them
-    to download files etc.
-    You have to interact with the user here. No need for a gui, just assume they know what they're doing
+    Helper to encode & send a CRequest, then read the server's response.
     """
+    try:
+        peer_socket.send(cRequest.name.encode())
+        return peer_socket.recv(G_BUFFER).decode()
+    except socket.error as e:
+        synchronized_print(f"[Error] clientSendRequest() socket error: {e}")
+        return ""
+    except UnicodeDecodeError as e:
+        synchronized_print(f"[Error] clientSendRequest() decode error: {e}")
+        return ""
 
 
-    return
+def handshakeWithServer(peer_socket: socket.socket) -> bool:
+    """
+    Simple handshake with the server using a shared secret.
+    """
+    try:
+        peer_socket.send(CRequest.Handshake.name.encode())
+        response = peer_socket.recv(G_BUFFER).decode()
+
+        if response == SResponse.SendSecret.name:
+            peer_socket.send(P2P_SECRET.encode())
+            response2 = peer_socket.recv(G_BUFFER).decode()
+            if response2 == SResponse.HandshakeSuccess.name:
+                synchronized_print("[Client] Handshake succeeded.")
+                return True
+            else:
+                synchronized_print("[Client] Handshake failed.")
+                return False
+        else:
+            synchronized_print(f"[Client] Unexpected handshake response: {response}")
+            return False
+
+    except socket.error as e:
+        synchronized_print(f"[Error] handshakeWithServer() => {e}")
+        return False
 
 
 def initialConnect():
     """
-    The initial connection will try to connect to an online peer. If successful it will retrieve a list
-    of peers in the network with their address and username.
-    -IF ONE PEER IS IN THE NETWORK NO THEY CANNOT CONNECT TO A PEER
-    -IF TWO PEERS ARE IN THE NETWORK THEN THERE'S ONLY TWO PEOPLE
-    -IF ONE PERSON CONNECTS TO A PEER WITH A LIST OF PEERS THEN THEY ARE ADDED TO THE NETWORK AND THE LIST
-     IS UPDATED AMONG PEERS
-    :return:
+    Attempts to connect to a known peer (hard-coded IP/port),
+    performs a handshake, registers this user, fetches G_peerList, sends local files.
     """
-    # Create Peer class for user
-    selfPeer = Peer(address=(G_MY_IP, G_MY_PORT))
+    selfPeer = Peer(address=(G_MY_IP, G_MY_PORT), username=G_MY_USERNAME)
     selfPeer.initializeFiles()
 
-    userPeer = PeerList((G_MY_IP, G_MY_PORT), G_MY_USERNAME)
+    userPeerList = PeerList((G_MY_IP, G_MY_PORT), G_MY_USERNAME)
 
-    # !!!! Add a while loop to keep asking for ip and port if error occurs
+    serverIP = '127.0.0.1'
+    serverPort = 12000
+
     with selfPeer.createTCPSocket() as peer_socket:
-
-
-        #Uncomment when done debugging
-        # When locally testing, '127.0.0.1' or '0.0.0.0' should be used
-        # inputs needs to be put into a separate function so it can run as a thread
-        # Make sure to error handle later
-        # serverIP: str = input("Type the Ip address of server: ")
-        # serverPort: int = int(input("Type the Port number of server: "))
-
-
-        #Delete this and uncomment above when done debugging
-        serverIP = '127.0.0.1'
-        serverPort = 12000
+        if USE_SSL:
+            try:
+                peer_socket = wrap_socket_for_client(peer_socket)
+            except Exception as e:
+                synchronized_print(f"[Error] SSL wrap (client) => {e}")
+                return
 
         try:
             peer_socket.connect((serverIP, serverPort))
+            synchronized_print(f"[Client] Connected to {serverIP}:{serverPort}.")
 
+            # 1) Do handshake
+            if not handshakeWithServer(peer_socket):
+                synchronized_print("[Client] Handshake failed; aborting initial connect.")
+                return
 
-            # Ask to connect to server and Receive message from server confirming connection
+            # 2) ConnectRequest
             serverResponse = clientSendRequest(peer_socket, CRequest.ConnectRequest)
-
-            # For future error implementation
-            print("1. Server Response: ", serverResponse)
+            synchronized_print(f"[Client] ConnectRequest => {serverResponse}")
             if serverResponse != SResponse.Connected.name:
-                raise Exception("Something went wrong")
+                raise Exception("Server did not return 'Connected'.")
 
-
-            # Sends a second request asking to add this user into the peer network
+            # 3) AddMe
             serverResponse = clientSendRequest(peer_socket, CRequest.AddMe)
-
-            print("2. Server Response: ", serverResponse)
+            synchronized_print(f"[Client] AddMe => {serverResponse}")
             if serverResponse != SResponse.SendYourInfo.name:
-                raise Exception("Something went wrong")
+                raise Exception("Expected 'SendYourInfo' after AddMe.")
 
-            # Sends the user's info to be added to peer list
-            jsonUserPeer = json.dumps(userPeer.__dict__())
+            # Send userPeerList
+            jsonUserPeer = json.dumps(userPeerList.__dict__())
             peer_socket.send(jsonUserPeer.encode())
 
-            # Receives an updated list of peer (including this user)
-            serverResponse = peer_socket.recv(Classes.G_BUFFER).decode()
+            # 4) Receive updated PeerList
+            updatedPeerListRaw = peer_socket.recv(G_BUFFER).decode()
+            synchronized_print(f"[Client] Updated PeerList => {updatedPeerListRaw}")
 
-            #Debugging
-            print("Server's peer list: ", serverResponse)
+            G_peerList.clear()
+            for item in json.loads(updatedPeerListRaw):
+                pl = peerList_from_dict(item)
+                if pl:
+                    G_peerList.append(pl)
+            synchronized_print(f"[Client] G_peerList now has {len(G_peerList)} entries.")
 
-            # Turns the json LIST of peerList(the class) into separate peerList(object individually)
-            # objects to be added to G_peerList(global peerlist that holds all the peers)
-            # Yeah I know bad name deal with it or change all uses of it
-            Classes.G_peerList = [Classes.peerList_from_dict(item) for item in json.loads(serverResponse)]
-
-            print(Classes.G_peerList)
-
+            # 5) SendMyFiles
             serverResponse = clientSendRequest(peer_socket, CRequest.SendMyFiles)
-
+            synchronized_print(f"[Client] SendMyFiles => {serverResponse}")
             if serverResponse != SResponse.SendYourInfo.name:
-                raise Exception("Something went wrong")
+                raise Exception("Expected 'SendYourInfo' after SendMyFiles.")
 
-            fileJsonList = json.dumps([file.__dict__() for file in selfPeer.files])
-
+            fileJsonList = json.dumps([f.__dict__() for f in selfPeer.files])
             peer_socket.send(fileJsonList.encode())
+            synchronized_print("[Client] Sent file list to server.")
 
-        except (TimeoutError, InterruptedError) as err:
-            print(err)
-            print("Connection did not go through. Check the Client IP and Port")
+        except (TimeoutError, ConnectionRefusedError, InterruptedError) as err:
+            synchronized_print(f"[Error] initialConnect() => Could not connect to {serverIP}:{serverPort} => {err}")
+        except Exception as e:
+            synchronized_print(f"[Error] initialConnect() => {e}")
 
 
-def clientSendRequest(peer_socket: socket, cRequest: CRequest) -> str:
+def runServer():
     """
-    Sends a request to a server
-    :param peer_socket:
-    :param cRequest:
-    :return: String representing Server response
+    Launches the server socket that listens for incoming client requests.
+    Uses a ThreadPoolExecutor to manage concurrency with a fixed pool size.
+    Optionally wraps in TLS (if USE_SSL = True).
     """
-    sendStr = cRequest.name
-    peer_socket.send(sendStr.encode())
-    return peer_socket.recv(Classes.G_BUFFER).decode()
+    srv = Server((G_MY_IP, G_MY_PORT))
+    listening_socket = srv.createTCPSocket()
+    if not listening_socket:
+        synchronized_print("[Fatal] runServer(): Could not create listening socket.")
+        return
 
+    if USE_SSL:
+        try:
+            listening_socket = wrap_socket_for_server(listening_socket)
+        except Exception as e:
+            synchronized_print(f"[Error] SSL wrap (server) => {e}")
+            return
 
-def get_user_input(input_queue):
-    while True:
-        synchronized_print("Enter command: ")
-        user_input = input()
-        input_queue.put(user_input)
+    with listening_socket:
+        listening_socket.listen(G_MAX_CONNECTIONS)
+        synchronized_print(f"[Server] Listening on {G_MY_IP}:{G_MY_PORT} with max {G_MAX_CONNECTIONS} connections. SSL={USE_SSL}")
 
+        with ThreadPoolExecutor(max_workers=THREAD_POOL_SIZE) as executor:
+            while True:
+                try:
+                    conn, addr = listening_socket.accept()
+                    synchronized_print(f"[Server] Accepted connection from {addr}.")
 
-def synchronized_print(message):
+                    conn.settimeout(10)
+                    executor.submit(srv.clientRequest, conn)
+                except OSError as e:
+                    synchronized_print(f"[Error] accept() failed: {e}")
+                    break
+
+def connectToPeerViaIndex(index: int) -> socket.socket | None:
     """
-    This is used mainly for debugging as of right now. Only main/runPeer should be printing to user so
-    there is no need to use this in the main program
-    :param message:
-    :return:
+    Let the user pick a peer from G_peerList by index and connect to them,
+    returning a newly created socket if successful. Also performs handshake + connect request.
     """
-    with G_print_lock:
-        print(message)
+    if index < 0 or index >= len(G_peerList):
+        print("Invalid peer index.")
+        return None
+
+    peer_info = G_peerList[index]
+    peer_addr = peer_info.addr
+    synchronized_print(f"[Peer] Connecting to {peer_info.username} at {peer_addr}...")
+
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        if USE_SSL:
+            sock = wrap_socket_for_client(sock)
+
+        sock.connect(peer_addr)
+        synchronized_print(f"[Peer] Connected to {peer_info.username} at {peer_addr}.")
+
+        if not handshakeWithServer(sock):
+            sock.close()
+            synchronized_print("[Peer] Handshake failed. Closing connection.")
+            return None
+
+        resp = clientSendRequest(sock, CRequest.ConnectRequest)
+        if resp != SResponse.Connected.name:
+            synchronized_print("[Peer] Server did not confirm connection. Closing.")
+            sock.close()
+            return None
+
+        return sock
+    except Exception as e:
+        synchronized_print(f"[Error] connectToPeerViaIndex => {e}")
+        return None
 
 
-if __name__ == '__main__':
+def runPeer():
+    """
+    A simple CLI loop for user actions:
+      1) List local files
+      2) List known peers
+      3) Connect to a chosen peer
+      4) Search for a file on the chosen peer
+      5) Download a file from the chosen peer
+      6) Upload a file to the chosen peer
+      7) Quit
+    """
+    global G_ENDPROGRAM  # <-- declare 'global' BEFORE referencing it
+
+    current_peer_socket: socket.socket | None = None
+    chosen_peer_index: int | None = None
+
+    local_peer = Peer((G_MY_IP, G_MY_PORT), G_MY_USERNAME)
+    local_peer.initializeFiles()
+
+    try:
+        while not G_ENDPROGRAM:
+            print("\n--- P2P MENU ---")
+            print("1) List local files")
+            print("2) List known peers")
+            print("3) Connect to a chosen peer from G_peerList")
+            print("4) Search for a file on the chosen peer")
+            print("5) Download a file from the chosen peer")
+            print("6) Upload a file to the chosen peer")
+            print("7) Quit")
+
+            choice = input("Enter choice: ").strip()
+
+            if choice == "1":
+                local_peer.displayCurrentFiles()
+
+            elif choice == "2":
+                if len(G_peerList) == 0:
+                    synchronized_print("[Info] No peers known yet.")
+                else:
+                    synchronized_print("Known peers (index: username @ addr):")
+                    for i, p in enumerate(G_peerList):
+                        print(f" [{i}] {p.username} @ {p.addr}")
+
+            elif choice == "3":
+                if len(G_peerList) == 0:
+                    synchronized_print("[Info] No peers known yet.")
+                    continue
+                index_str = input("Enter the index of the peer to connect: ")
+                try:
+                    idx = int(index_str)
+                    sock = connectToPeerViaIndex(idx)
+                    if sock:
+                        # Close old peer socket if open
+                        if current_peer_socket:
+                            current_peer_socket.close()
+                        current_peer_socket = sock
+                        chosen_peer_index = idx
+                        synchronized_print("[Peer] Connected to chosen peer successfully.")
+                except ValueError:
+                    print("Invalid input, must be an integer.")
+
+            elif choice == "4":
+                if current_peer_socket is None:
+                    print("No peer connected. Use option 3 to connect first.")
+                    continue
+                query = input("Enter search query (substring): ")
+                temp_peer = Peer()
+                temp_peer.socket = current_peer_socket
+                temp_peer.searchFiles(query)
+
+            elif choice == "5":
+                if current_peer_socket is None:
+                    print("No peer connected. Use option 3 to connect first.")
+                    continue
+                filename = input("Enter the filename to download: ").strip()
+                temp_peer = Peer()
+                temp_peer.socket = current_peer_socket
+                temp_peer.fileRequest(filename)
+
+            elif choice == "6":
+                if current_peer_socket is None:
+                    print("No peer connected. Use option 3 to connect first.")
+                    continue
+                filename = input("Enter the local filename to upload (must be in local 'Files/' folder): ").strip()
+                temp_peer = Peer()
+                temp_peer.socket = current_peer_socket
+                temp_peer.uploadFile(filename)
+
+            elif choice == "7":
+                print("Exiting peer UI.")
+                break
+
+            else:
+                print("Invalid choice, try again.")
+
+            time.sleep(0.2)
+
+    except KeyboardInterrupt:
+        synchronized_print("[Peer] Interrupted, shutting down.")
+    finally:
+        # Mark the end of the program, close sockets
+        G_ENDPROGRAM = True
+        if current_peer_socket:
+            current_peer_socket.close()
+
+
+def main():
+    print("Welcome to our *Enhanced* P2P Network!\n")
+
+    # 1) Start the server in a separate thread
+    serverThread = threading.Thread(target=runServer, daemon=True)
+    serverThread.start()
+
+    # 2) Attempt an initial connection to a known peer
+    initialConnect()
+
+    # 3) Start the peer interaction thread (not daemon, so main waits for it)
+    peerThread = threading.Thread(target=runPeer, daemon=False)
+    peerThread.start()
+
+    # 4) Wait for the peer thread to finish
+    peerThread.join()
+
+    synchronized_print("Complete! Exiting main().")
+
+
+if __name__ == "__main__":
     main()
