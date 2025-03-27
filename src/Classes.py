@@ -255,7 +255,13 @@ class Server:
         If the file has been removed it will send a message saying this file is unavailable
         :return: bool
         """
-        # TODO: SENDING FILE REQUEST
+        # TODO: SENDING FILE REQUEST:
+        # ADD CODE: Implement file sending logic here
+        # 1. Receive requested filename from client
+        # 2. Check if file exists in G_FileList
+        # 3. If exists, send file in chunks
+        # 4. If not exists, send "File unavailable" message
+
 
         return
 
