@@ -257,7 +257,8 @@ class Server:
         """
         # TODO: SENDING FILE REQUEST:
         # ADD CODE: Implement file sending logic here
-        # # 1. Receive requested filename from client
+
+         # 1. Receive requested filename from client
         requested_filename = clientSocket.recv(G_BUFFER).decode()
         print(f"Received request for file: {requested_filename}")
 
