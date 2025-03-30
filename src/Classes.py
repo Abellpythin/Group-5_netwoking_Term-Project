@@ -268,10 +268,10 @@ class Server:
                 file_found = file
                 break
 
-    if not file_found:
+         if not file_found:
         # File not found, send error message
-        clientSocket.send("File unavailable".encode())
-        return False
+            clientSocket.send("File unavailable".encode())
+            return False
 
         # 3. If exists, send file in chunks
         # 4. If not exists, send "File unavailable" message
