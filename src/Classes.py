@@ -274,10 +274,36 @@ class Server:
             return False
 
         # 3. If exists, send file in chunks
-        # 4. If not exists, send "File unavailable" message
+        try:
+            # Get the file path (assuming files are stored in a Files directory)
+            current_directory = Path.cwd()
+            files_directory = current_directory.parent / "Files"
+            file_path = files_directory / requested_filename
 
+            # Send file size first
+            file_size = file_path.stat().st_size
+            clientSocket.send(str(file_size).encode())
 
-        return
+            # Wait for acknowledgment
+            ack = clientSocket.recv(G_BUFFER).decode()
+            if ack != "READY":
+                raise Exception("Client not ready to receive file")
+
+            # Send file in chunks
+            with open(file_path, 'rb') as f:
+                while True:
+                    chunk = f.read(G_BUFFER)
+                    if not chunk:
+                        break  # EOF
+                    clientSocket.send(chunk)
+
+            print(f"Successfully sent file: {requested_filename}")
+            return True
+
+        except Exception as e:
+            print(f"Error sending file: {e}")
+            clientSocket.send(f"Error sending file: {str(e)}".encode())
+            return False
 
     def receiveRequestedFiles(self, clientSocket: socket) -> bool:
         """
