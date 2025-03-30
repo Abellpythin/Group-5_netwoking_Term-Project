@@ -258,7 +258,7 @@ class Server:
         # TODO: SENDING FILE REQUEST:
         # ADD CODE: Implement file sending logic here
 
-         # 1. Receive requested filename from client
+        # 1. Receive requested filename from client
         requested_filename = clientSocket.recv(G_BUFFER).decode()
         print(f"Received request for file: {requested_filename}")
 
@@ -269,8 +269,8 @@ class Server:
                 file_found = file
                 break
 
-         if not file_found:
-        # File not found, send error message
+        if not file_found:
+            # File not found, send error message
             clientSocket.send("File unavailable".encode())
             return False
 
