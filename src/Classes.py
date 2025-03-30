@@ -257,8 +257,22 @@ class Server:
         """
         # TODO: SENDING FILE REQUEST:
         # ADD CODE: Implement file sending logic here
-        # 1. Receive requested filename from client
+        # # 1. Receive requested filename from client
+        requested_filename = clientSocket.recv(G_BUFFER).decode()
+        print(f"Received request for file: {requested_filename}")
+
         # 2. Check if file exists in G_FileList
+        file_found = None
+        for file in G_FileList:
+            if file.fileName == requested_filename:
+                file_found = file
+                break
+
+    if not file_found:
+        # File not found, send error message
+        clientSocket.send("File unavailable".encode())
+        return False
+
         # 3. If exists, send file in chunks
         # 4. If not exists, send "File unavailable" message
 
