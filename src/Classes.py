@@ -255,7 +255,7 @@ class Server:
         If the file has been removed it will send a message saying this file is unavailable
         :return: bool
         """
-        # TODO: SENDING FILE REQUEST:
+        #  SENDING FILE REQUEST: completed
         # ADD CODE: Implement file sending logic here
 
         # 1. Receive requested filename from client
