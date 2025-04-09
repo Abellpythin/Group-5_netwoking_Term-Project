@@ -155,6 +155,23 @@ def runPeer():
     to download files etc.
     You have to interact with the user here. No need for a gui, just assume they know what they're doing
     """
+    """
+        Handles user interactions in the peer network. Displays available files and peers,
+        allows file downloads, and provides a menu for user actions.
+        """
+    input_thread = threading.Thread(target=get_user_input, args=(G_input_queue,), daemon=True)
+    input_thread.start()
+
+    while not G_ENDPROGRAM:
+        try:
+            # Display menu options
+            synchronized_print("\n===== Peer Network Menu =====")
+            synchronized_print("1. List all available files in network")
+            synchronized_print("2. List all peers in network")
+            synchronized_print("3. Download a file")
+            synchronized_print("4. Refresh peer list")
+            synchronized_print("5. Exit")
+            synchronized_print("============================")
 
 
     return
