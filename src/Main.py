@@ -172,7 +172,28 @@ def runPeer():
             synchronized_print("4. Refresh peer list")
             synchronized_print("5. Exit")
             synchronized_print("============================")
+            # Get user input from queue
+            try:
+                user_input = G_input_queue.get(timeout=1)
+            except queue.Empty:
+                continue
 
+            if user_input == "1":
+                list_all_files()
+            elif user_input == "2":
+                list_all_peers()
+            elif user_input == "3":
+                download_file()
+            elif user_input == "4":
+                refresh_peer_list()
+            elif user_input == "5":
+                G_ENDPROGRAM = True
+                synchronized_print("Exiting program...")
+            else:
+                synchronized_print("Invalid option. Please try again.")
+
+        except Exception as e:
+            synchronized_print(f"Error in peer operations: {e}")
 
     return
 
