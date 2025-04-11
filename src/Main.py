@@ -195,6 +195,57 @@ def runPeer():
         except Exception as e:
             synchronized_print(f"Error in peer operations: {e}")
 
+        def list_all_files():
+            """Lists all available files in the network across all peers"""
+            if not Classes.G_peerList:
+                synchronized_print("No peers available in the network.")
+                return
+
+            synchronized_print("\n=== Available Files ===")
+            file_count = 0
+
+            for peer in Classes.G_peerList:
+                if peer.address == (G_MY_IP, G_MY_PORT):
+                    continue  # Skip our own files
+
+                try:
+                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                        s.settimeout(5)
+                        s.connect(peer.address)
+
+                        # Request file list
+                        s.send(CRequest.ListFiles.name.encode())
+                        response = s.recv(Classes.G_BUFFER).decode()
+
+                        if response == SResponse.SendYourInfo.name:
+                            # Our peer is expecting a confirmation
+                            s.send("Ready".encode())
+                            file_data = s.recv(Classes.G_BUFFER).decode()
+                            files = json.loads(file_data)
+
+                            if files:
+                                synchronized_print(
+                                    f"\nFiles from {peer.username} ({peer.address[0]}:{peer.address[1]}):")
+                                for file in files:
+                                    synchronized_print(f" - {file['name']} (Size: {file['size']} bytes)")
+                                    file_count += 1
+                except Exception as e:
+                    synchronized_print(f"Could not connect to peer {peer.username}: {e}")
+                if file_count == 0:
+                    synchronized_print("No files available in the network.")
+
+                def list_all_peers():
+                    """Lists all peers currently in the network"""
+                    synchronized_print("\n=== Peers in Network ===")
+                    if not Classes.G_peerList:
+                        synchronized_print("No peers available.")
+                        return
+
+                    for i, peer in enumerate(Classes.G_peerList, 1):
+                        status = " (You)" if peer.address == (G_MY_IP, G_MY_PORT) else ""
+                        synchronized_print(f"{i}. {peer.username}{status} - {peer.address[0]}:{peer.address[1]}")
+
+
     return
 
 
