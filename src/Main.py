@@ -164,7 +164,7 @@ def runPeer():
 
     while not G_ENDPROGRAM:
         try:
-            # Display menu options
+            # Display menu options:
             synchronized_print("\n===== Peer Network Menu =====")
             synchronized_print("1. List all available files in network")
             synchronized_print("2. List all peers in network")
