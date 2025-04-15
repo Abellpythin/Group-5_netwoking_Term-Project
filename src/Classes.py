@@ -256,7 +256,7 @@ class Server:
         :return: bool
         """
 
-        # ToDo: To be implemented
+        # giToDo: To be implemented
         return
 
     def receiveRequestedFiles(self, clientSocket: socket) -> bool:
