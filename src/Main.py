@@ -6,6 +6,8 @@ import socket
 import ssl   # For optional TLS
 import threading
 import time
+import queue
+import os
 from concurrent.futures import ThreadPoolExecutor
 
 # Import everything from Classes
@@ -22,6 +24,9 @@ G_MY_IP: str = '127.0.0.1'
 G_MY_USERNAME: str = "Debugger"
 G_MAX_CONNECTIONS: int = 5
 G_ENDPROGRAM: bool = False
+
+# Queue necessary for I/O operations
+G_input_queue = queue.Queue()
 
 # You can adjust this to handle concurrency
 THREAD_POOL_SIZE = 4
