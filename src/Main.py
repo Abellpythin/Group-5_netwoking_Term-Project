@@ -155,7 +155,8 @@ def runPeer():
     to download files etc.
     You have to interact with the user here. No need for a gui, just assume they know what they're doing
     """
-
+    #TODO: Request File from server
+    #TODO: Disconnect from server
 
     return
 
