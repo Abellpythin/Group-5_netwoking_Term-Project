@@ -209,6 +209,8 @@ def list_all_files():
         if peer.address == (G_MY_IP, G_MY_PORT):
             continue  # Skip our own files
 
+
+
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.settimeout(5)
