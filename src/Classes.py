@@ -603,6 +603,7 @@ class Server:
         base_path = Path.cwd().parent / "Files"
         target_path = base_path / filename
 
+
         try:
             with open(target_path, "wb") as f:
                 while True:
@@ -622,6 +623,66 @@ class Server:
         new_file = File(filename, "UnknownUploader", None)
         G_FileList.append(new_file)
         return True
+
+    def sendRequestedFile(self, clientSocket: socket):
+        """
+        This will send the requested file
+        Any file in the peer's file list is open to be requested and sent.
+        There will be no confirmation message after it is added.
+        If the file has been removed it will send a message saying this file is unavailable
+        :return: bool
+        """
+        #  SENDING FILE REQUEST: completed
+        # ADD CODE: Implement file sending logic here
+
+        # 1. Receive requested filename from client
+        requested_filename = clientSocket.recv(G_BUFFER).decode()
+        print(f"Received request for file: {requested_filename}")
+
+        # 2. Check if file exists in G_FileList
+        file_found = None
+        for file in G_FileList:
+            if file.fileName == requested_filename:
+                file_found = file
+                break
+
+        if not file_found:
+            # File not found, send error message
+            clientSocket.send("File unavailable".encode())
+            return False
+
+        # 3. If exists, send file in chunks
+        try:
+            # Get the file path (assuming files are stored in a Files directory)
+            current_directory = Path.cwd()
+            files_directory = current_directory.parent / "Files"
+            file_path = files_directory / requested_filename
+
+            # Send file size first
+            file_size = file_path.stat().st_size
+            clientSocket.send(str(file_size).encode())
+
+            # Wait for acknowledgment
+            ack = clientSocket.recv(G_BUFFER).decode()
+            if ack != "READY":
+                raise Exception("Client not ready to receive file")
+
+            # Send file in chunks
+            with open(file_path, 'rb') as f:
+                while True:
+                    chunk = f.read(G_BUFFER)
+                    if not chunk:
+                        break  # EOF
+                    clientSocket.send(chunk)
+
+            print(f"Successfully sent file: {requested_filename}")
+            return True
+
+        except Exception as e:
+            print(f"Error sending file: {e}")
+            clientSocket.send(f"Error sending file: {str(e)}".encode())
+            return False
+
 
     def clientRequest(self, clientSocket: socket.socket) -> bool:
         """
