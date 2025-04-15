@@ -155,11 +155,211 @@ def runPeer():
     to download files etc.
     You have to interact with the user here. No need for a gui, just assume they know what they're doing
     """
-    #TODO: Request File from server
-    #TODO: Disconnect from server
+    """
+    Handles user interactions in the peer network. Displays available files and peers,
+    allows file downloads, and provides a menu for user actions.
+    """
+    input_thread = threading.Thread(target=get_user_input, args=(G_input_queue,), daemon=True)
+    input_thread.start()
 
-    return
+    while not G_ENDPROGRAM:
+        try:
+            # Display menu options:
+            synchronized_print("\n===== Peer Network Menu =====")
+            synchronized_print("1. List all available files in network")
+            synchronized_print("2. List all peers in network")
+            synchronized_print("3. Download a file")
+            synchronized_print("4. Refresh peer list")
+            synchronized_print("5. Exit")
+            synchronized_print("============================")
 
+            # Get user input from queue
+            try:
+                user_input = G_input_queue.get(timeout=1)
+            except queue.Empty:
+                continue
+
+            if user_input == "1":
+                list_all_files()
+            elif user_input == "2":
+                list_all_peers()
+            elif user_input == "3":
+                download_file()
+            elif user_input == "4":
+                refresh_peer_list()
+            elif user_input == "5":
+                G_ENDPROGRAM = True
+                synchronized_print("Exiting program...")
+            else:
+                synchronized_print("Invalid option. Please try again.")
+
+        except Exception as e:
+            synchronized_print(f"Error in peer operations: {e}")
+
+def list_all_files():
+    """Lists all available files in the network across all peers"""
+    if not Classes.G_peerList:
+        synchronized_print("No peers available in the network.")
+        return
+
+    synchronized_print("\n=== Available Files ===")
+    file_count = 0
+
+    for peer in Classes.G_peerList:
+        if peer.address == (G_MY_IP, G_MY_PORT):
+            continue  # Skip our own files
+
+
+
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.settimeout(5)
+                s.connect(peer.address)
+
+                # Request file list
+                s.send(CRequest.ListFiles.name.encode())
+                response = s.recv(Classes.G_BUFFER).decode()
+
+                if response == SResponse.SendYourInfo.name:
+                    # Our peer is expecting a confirmation
+                    s.send("Ready".encode())
+                    file_data = s.recv(Classes.G_BUFFER).decode()
+                    files = json.loads(file_data)
+
+                    if files:
+                        synchronized_print(f"\nFiles from {peer.username} ({peer.address[0]}:{peer.address[1]}):")
+                        for file in files:
+                            synchronized_print(f" - {file['name']} (Size: {file['size']} bytes)")
+                            file_count += 1
+        except Exception as e:
+            synchronized_print(f"Could not connect to peer {peer.username}: {e}")
+
+    if file_count == 0:
+        synchronized_print("No files available in the network.")
+
+def list_all_peers():
+    """Lists all peers currently in the network"""
+    synchronized_print("\n=== Peers in Network ===")
+    if not Classes.G_peerList:
+        synchronized_print("No peers available.")
+        return
+
+    for i, peer in enumerate(Classes.G_peerList, 1):
+        status = " (You)" if peer.address == (G_MY_IP, G_MY_PORT) else ""
+        synchronized_print(f"{i}. {peer.username}{status} - {peer.address[0]}:{peer.address[1]}")
+
+def download_file():
+    """Handles file download from another peer"""
+    if not Classes.G_peerList:
+        synchronized_print("No peers available to download from.")
+        return
+
+    # List peers to choose from (excluding ourselves)
+    available_peers = [p for p in Classes.G_peerList if p.address != (G_MY_IP, G_MY_PORT)]
+    if not available_peers:
+        synchronized_print("No other peers available to download from.")
+        return
+
+    synchronized_print("\nSelect a peer to download from:")
+    for i, peer in enumerate(available_peers, 1):
+        synchronized_print(f"{i}. {peer.username} - {peer.address[0]}:{peer.address[1]}")
+
+    try:
+        peer_choice = int(G_input_queue.get())
+        selected_peer = available_peers[peer_choice - 1]
+
+        # Connect to peer and request file list
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(10)
+            s.connect(selected_peer.address)
+
+            # Request file list
+            s.send(CRequest.ListFiles.name.encode())
+            response = s.recv(Classes.G_BUFFER).decode()
+
+            if response == SResponse.SendYourInfo.name:
+                s.send("Ready".encode())
+                file_data = s.recv(Classes.G_BUFFER).decode()
+                files = json.loads(file_data)
+
+                if not files:
+                    synchronized_print("No files available from this peer.")
+                    return
+
+                synchronized_print("\nAvailable files:")
+                for i, file in enumerate(files, 1):
+                    synchronized_print(f"{i}. {file['name']} (Size: {file['size']} bytes)")
+
+                synchronized_print("Enter the number of the file to download:")
+                file_choice = int(G_input_queue.get())
+                selected_file = files[file_choice - 1]
+
+                # Request file download
+                s.send(CRequest.DownloadFile.name.encode())
+                response = s.recv(Classes.G_BUFFER).decode()
+
+                if response == SResponse.SendYourInfo.name:
+                    # Send the filename we want to download
+                    s.send(selected_file['name'].encode())
+
+                    # Receive the file data in binary
+                    file_data = b''
+                    while True:
+                        chunk = s.recv(Classes.G_BUFFER)
+                        if not chunk:
+                            break
+                        file_data += chunk
+
+                    # Save the file
+                    download_dir = "downloads"
+                    os.makedirs(download_dir, exist_ok=True)
+                    file_path = os.path.join(download_dir, selected_file['name'])
+
+                    with open(file_path, 'wb') as f:
+                        f.write(file_data)
+
+                    synchronized_print(f"File '{selected_file['name']}' downloaded successfully to {download_dir}/")
+                else:
+                    synchronized_print("Failed to initiate download.")
+    except (ValueError, IndexError):
+        synchronized_print("Invalid selection.")
+    except Exception as e:
+        synchronized_print(f"Download failed: {e}")
+
+def refresh_peer_list():
+    """Refreshes the list of peers in the network"""
+    synchronized_print("Refreshing peer list...")
+
+    # Try to connect to each known peer to get updated list
+    for peer in Classes.G_peerList[:]:  # Create a copy for iteration
+        if peer.address == (G_MY_IP, G_MY_PORT):
+            continue
+
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.settimeout(5)
+                s.connect(peer.address)
+
+                # Request peer list
+                s.send(CRequest.ListPeers.name.encode())
+                response = s.recv(Classes.G_BUFFER).decode()
+
+                if response == SResponse.SendYourInfo.name:
+                    s.send("Ready".encode())
+                    peer_data = s.recv(Classes.G_BUFFER).decode()
+                    new_peers = [Classes.peerList_from_dict(item) for item in json.loads(peer_data)]
+
+                    # Update our peer list with new information
+                    for new_peer in new_peers:
+                        if new_peer.address not in [p.address for p in Classes.G_peerList]:
+                            Classes.G_peerList.append(new_peer)
+
+                    synchronized_print("Peer list updated successfully.")
+                    return
+        except Exception as e:
+            synchronized_print(f"Could not connect to peer {peer.username}: {e}")
+
+    synchronized_print("Could not refresh peer list from any known peers.")
 
 def initialConnect():
     """
