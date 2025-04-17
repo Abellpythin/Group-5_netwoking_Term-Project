@@ -298,6 +298,10 @@ def waitForSecondConnection():
 
 
 def getServerAddress() -> tuple[str, int]:
+    """
+    Gets the server address from user input
+    :return: (serverIp,serverPort) a tuple of the server's address
+    """
     serverIp: str
     while True:
         try:
