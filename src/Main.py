@@ -493,7 +493,7 @@ def runPeer():
 
             choice = input("Enter choice: ").strip()
 
-            # <— BEGIN ADDED BLOCK
+
             if choice == "0":
                 synchronized_print("[Peer] Registering with server…")
                 initialConnect()
@@ -501,7 +501,7 @@ def runPeer():
                 for i, p in enumerate(G_peerList, 1):
                     synchronized_print(f"   {i}. {p.username} @ {p.addr}")
                 continue
-            # END ADDED BLOCK —>
+
 
             if choice == "1":
                 local_peer.displayCurrentFiles()
