@@ -86,6 +86,15 @@ def runPeer():
 
     # todo: Request File from server
     # todo: Disconnect from server
+    global G_ENDPROGRAM
+
+    while G_ENDPROGRAM:
+        try:
+            input
+        except:
+            
+        finally:
+
 
     return
 
