@@ -8,6 +8,7 @@ import json
 import queue
 import threading
 import socket  # For type annotation
+import time # for debugging
 
 import Classes  # Classes.G_peerList
 from Classes import Peer
@@ -87,14 +88,19 @@ def runPeer():
     # todo: Request File from server
     # todo: Disconnect from server
     global G_ENDPROGRAM
-
-    while G_ENDPROGRAM:
+    time.sleep(5)
+    print("------------")
+    while not G_ENDPROGRAM:
         try:
-            input
+            print("""
+            -Hey Lol
+            -Testing
+            -Ok
+            """)
         except:
-            
+            1
         finally:
-
+            return
 
     return
 
