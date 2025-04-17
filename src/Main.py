@@ -37,7 +37,6 @@ G_input_queue: queue.Queue = queue.Queue()
 # Used to synchronize print statements among threads. Used for debugging
 G_print_lock: threading.Lock = threading.Lock()
 
-
 # After running any socket, wait at least 30 seconds or else you'll get this error
 # OSError: [Errno 48] Address already in use
 def main():
@@ -51,7 +50,6 @@ def main():
     # Uncomment when done debugging
     setUserName()
     setUserIP()
-    firstP2PServer()
     # ------------------------------------------------------------------------------------------------------------
 
     # IMPORTANT
@@ -101,6 +99,7 @@ def runServer():
     There should be NO IO OPERATIONS IN THE SERVER
     :return:
     """
+    global G_ENDPROGRAM
     myServer: Server = Server((G_MY_IP, G_MY_PORT))
 
     with myServer.createTCPSocket() as listening_socket:
@@ -108,12 +107,14 @@ def runServer():
         listening_socket.listen(G_MAX_CONNECTIONS)
         threads: list[threading.Thread] = []
 
-        while True:
+        while not G_ENDPROGRAM:
+            """
+            Todo: What happens when user ends program while server listens?
+            """
             conn, addr = listening_socket.accept()  # Accepts 1 connection at a time
 
-            #Set to 60 once done debugging
-            # While debugging set to 10
-            conn.settimeout(60)
+            # Optional settimeout so clients can't linger for too long
+            #conn.settimeout(60)
 
             #IMPORTANT You will feel suicidal if you don't heed this warning
             # WHEN MAKING A THREAD THAT HAS ARGUMENTS
@@ -140,6 +141,8 @@ def initialConnect():
      IS UPDATED AMONG PEERS
     :return:
     """
+    waitForSecondConnection()
+
     # Create Peer class for user
     selfPeer: Peer = Peer(address=(G_MY_IP, G_MY_PORT))
     selfPeer.initializeFiles()
@@ -153,60 +156,61 @@ def initialConnect():
         # When locally testing, '127.0.0.1' or '0.0.0.0' should be used
         # inputs needs to be put into a separate function so it can run as a thread
         # Make sure to error handle later
-        serverIP: str = input("Type the Ip address of server: ")
-        serverPort: int = int(input("Type the Port number of server: "))
 
-        #Delete this and uncomment above when done debugging
-        # serverIP: str = '127.0.0.1'
-        # serverPort: int = 12000
+        connectionSuccess: bool = True
 
-        try:
-            peer_socket.connect((serverIP, serverPort))
+        while connectionSuccess:
+            serverIP: str
+            serverPort: int
+            serverIP, serverPort = getServerAddress()
 
-            # Ask to connect to server and Receive message from server confirming connection
-            serverResponse: str = clientSendRequest(peer_socket, CRequest.ConnectRequest)
+            try:
+                peer_socket.connect((serverIP, serverPort))
 
-            # For future error implementation
-            print("1. Server Response: ", serverResponse)
-            if serverResponse != SResponse.Connected.name:
-                raise Exception("Something went wrong")
+                # Ask to connect to server and Receive message from server confirming connection
+                serverResponse: str = clientSendRequest(peer_socket, CRequest.ConnectRequest)
 
-            # Sends a second request asking to add this user into the peer network
-            serverResponse = clientSendRequest(peer_socket, CRequest.AddMe)
+                # For future error implementation
+                print("1. Server Response: ", serverResponse)
+                if serverResponse != SResponse.Connected.name:
+                    raise Exception("Something went wrong")
 
-            print("2. Server Response: ", serverResponse)
-            if serverResponse != SResponse.SendYourInfo.name:
-                raise Exception("Something went wrong")
+                # Sends a second request asking to add this user into the peer network
+                serverResponse = clientSendRequest(peer_socket, CRequest.AddMe)
 
-            # Sends the user's info to be added to peer list
-            jsonUserPeer: str = json.dumps(userPeer.__dict__())
-            peer_socket.send(jsonUserPeer.encode())
+                print("2. Server Response: ", serverResponse)
+                if serverResponse != SResponse.SendYourInfo.name:
+                    raise Exception("Something went wrong")
 
-            # Receives an updated list of peer (including this user)
-            serverResponse = peer_socket.recv(Classes.G_BUFFER).decode()
+                # Sends the user's info to be added to peer list
+                jsonUserPeer: str = json.dumps(userPeer.__dict__())
+                peer_socket.send(jsonUserPeer.encode())
 
-            # Debugging
-            print("Server's peer list: ", serverResponse)
+                # Receives an updated list of peer (including this user)
+                serverResponse = peer_socket.recv(Classes.G_BUFFER).decode()
 
-            # Turns the json LIST of peerList(the class) into separate peerList(object individually)
-            # objects to be added to G_peerList(global peerlist that holds all the peers)
-            # Yeah I know bad name deal with it or change all uses of it
-            Classes.G_peerList = [Classes.peerList_from_dict(item) for item in json.loads(serverResponse)]
+                # Debugging
+                print("Server's peer list: ", serverResponse)
 
-            print(Classes.G_peerList)
+                # Turns the json LIST of peerList(the class) into separate peerList(object individually)
+                # objects to be added to G_peerList(global peerlist that holds all the peers)
+                # Yeah I know bad name deal with it or change all uses of it
+                Classes.G_peerList = [Classes.peerList_from_dict(item) for item in json.loads(serverResponse)]
 
-            serverResponse = clientSendRequest(peer_socket, CRequest.SendMyFiles)
+                print(Classes.G_peerList)
 
-            if serverResponse != SResponse.SendYourInfo.name:
-                raise Exception("Something went wrong")
+                serverResponse = clientSendRequest(peer_socket, CRequest.SendMyFiles)
 
-            fileJsonList: str = json.dumps([file.__dict__() for file in selfPeer.files])
+                if serverResponse != SResponse.SendYourInfo.name:
+                    raise Exception("Something went wrong")
 
-            peer_socket.send(fileJsonList.encode())
+                fileJsonList: str = json.dumps([file.__dict__() for file in selfPeer.files])
 
-        except (TimeoutError, InterruptedError) as err:
-            print(err)
-            print("Connection did not go through. Check the Client IP and Port")
+                peer_socket.send(fileJsonList.encode())
+
+            except (TimeoutError, InterruptedError, ConnectionRefusedError) as err:
+
+                print("Connection did not go through. Check the Client IP and Port")
 
 
 def clientSendRequest(peer_socket: socket, cRequest: CRequest | int) -> str:
@@ -266,21 +270,57 @@ def setUserIP():
             print(f"Invalid IP address: {e}")
 
 
-def firstP2PServer():
-    print("Start server? (Yes or No)\n")
+def waitForSecondConnection():
+    """
+    This will wait for the user to confirm there is a second user that is online
+    Automation of this function would require a callback from the runServer function.
+    :return: void
+    """
+    print("If you're the first to connect, wait here")
+    print("Press n to continue.")
 
     while True:
         start: str = input().lower()
-        if(start == "yes" or start == "no"):
+        if(start == 'n'):
             break
         else:
-            print("Please respond with yes or no")
-    if(start == 'yes'):
-        runServer()
-    else:
-        return
+            print("Please press n")
+    return
 
-    raise AssertionError
+
+def getServerAddress() -> tuple[str, int]:
+    serverIp: str
+    while True:
+        try:
+            serverIp = input("Enter the peer's IP address (e.g., 127.0.0.1): ")
+            parts = serverIp.split(".")
+            if len(parts) != 4:
+                raise ValueError("IP address must have four parts separated by dots.")
+            for part in parts:
+                if not part.isdigit():
+                    raise ValueError("Each part of the IP address must be a number.")
+                if len(part) > 3:
+                    raise ValueError("Each part of the IP address must have at most 3 digits.")
+                num = int(part)
+                if num < 0 or num > 255:
+                    raise ValueError("Each part of the IP address must be between 0 and 255.")
+            print(f"Valid IP address: {serverIp}")
+            break
+        except ValueError as e:
+            print(f"Invalid IP address: {e}")
+
+    serverPort: int
+    while True:
+        try:
+            serverPort = int(input("Enter the Port Number of the peer (default is 12000): "))
+            if (1024 <= serverPort <= 65535):
+                break
+            else:
+                raise ValueError("Please Enter a port within the valid range: [1024, 65535]")
+        except ValueError as e:
+            print(f"Invalid Port number: {e}")
+
+    return (serverIp, serverPort)
 
 
 

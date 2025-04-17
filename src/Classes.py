@@ -5,6 +5,7 @@ from enum import Enum
 import json
 import socket
 import time
+import threading
 from pathlib import Path
 import HelperFunctions
 
@@ -16,6 +17,7 @@ G_BUFFER: int = 2500000  # 2.5 mB
 # Remember to add thread lock to this object. If multiple threads try to add new clients then we're doomed
 G_peerList: list[PeerList] = []
 G_FileList: list[File] = []
+G_peerListLock: threading.Lock = threading.Lock()
 
 
 # Enumerations are used to guarantee consistent strings for communication between sockets
@@ -106,11 +108,13 @@ class Peer:
         :return: List of peers currently online in network
         """
         global G_peerList
+        global G_peerListLock
         self.socket.send(CRequest.PeerList.name.encode())
 
         # Receive json data containing peerlist data
         data: str = self.socket.recv(G_BUFFER).decode()
-        G_peerList = [peerList_from_dict(item) for item in json.loads(data)]
+        with G_peerListLock:
+            G_peerList = [peerList_from_dict(item) for item in json.loads(data)]
 
     def fileRequest(self):
         # Send in chunks? What's the format? How to turn it back to list?
@@ -172,7 +176,7 @@ class Server:
         endTime: float = time.time()
         length: float = endTime - startTime
 
-        while (length < 60) and (requestsHandled):
+        while (length < 5) and (requestsHandled):
             # Reset everytime a successful connection occurs
             startTime = time.time()
 
@@ -220,6 +224,7 @@ class Server:
         :param clientSocket:
         :return:
         """
+        global G_peerListLock
         # Ask client to Send their PeerList describing themselves
         # Receive client's PeerList object describing themselves
         clientResponse: str = self.serverSendResponse(clientSocket, SResponse.SendYourInfo)
@@ -227,8 +232,9 @@ class Server:
         print("Server client peer data: ", clientResponse)
         clientPeer: PeerList = peerList_from_dict(json.loads(clientResponse))
 
-        # Puts the peer in peerlist if not currently in peerlist
-        G_peerList.append(clientPeer) if clientPeer not in G_peerList else None
+        with G_peerListLock:
+            # Puts the peer in peerlist if not currently in peerlist
+            G_peerList.append(clientPeer) if clientPeer not in G_peerList else None
 
         #Send back this server's G_peerList
         self.sendPeerList(clientSocket)
@@ -240,7 +246,9 @@ class Server:
         # Adding this to show on local clients that it will send the whole list
         # Remember, on local clients both the server and client have the same username, ip, and port
         #REMOVE LATER DEBUGGING
-        G_peerList.append(PeerList(('Debugging', 12000), "Let's Go"))
+        global G_peerListLock
+        with G_peerListLock:
+            G_peerList.append(PeerList(('Debugging', 12000), "Let's Go"))
         # ------------------------------------------------------------------------------------------------------------
 
         json_data: str = json.dumps([peer.__dict__() for peer in G_peerList])

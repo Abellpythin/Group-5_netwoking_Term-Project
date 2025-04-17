@@ -1,4 +1,9 @@
 # Group-5_netwoking_Term-Project
+
+```angular2html
+python version 3.13
+```
+
 computer networking Term Project 
 ![img.png](img.png)
 
