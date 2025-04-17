@@ -49,39 +49,9 @@ def main():
 
     # ------------------------------------------------------------------------------------------------------------
     # Uncomment when done debugging
-    while True:
-        try:
-            G_MY_USERNAME = input("Enter your username: ")
-            if not G_MY_USERNAME:
-                raise ValueError("Username cannot be empty.")
-            if not G_MY_USERNAME[0].isalpha():
-                raise ValueError("Username must start with a letter.")
-            if not all(char.isalnum() or char == "_" for char in G_MY_USERNAME):
-                raise ValueError("Username can only contain letters, numbers, and underscores.")
-            if not 4 <= len(G_MY_USERNAME) <= 25:
-                raise ValueError("Username must be between 4 and 25 characters long.")
-            break
-        except ValueError as e:
-            print(f"Invalid username: {e}")
-
-    while True:
-        try:
-            ip_address = input("Enter your IP address (e.g., 127.0.0.1): ")
-            parts = ip_address.split(".")
-            if len(parts) != 4:
-                raise ValueError("IP address must have four parts separated by dots.")
-            for part in parts:
-                if not part.isdigit():
-                    raise ValueError("Each part of the IP address must be a number.")
-                if len(part) > 3:
-                    raise ValueError("Each part of the IP address must have at most 3 digits.")
-                num = int(part)
-                if num < 0 or num > 255:
-                    raise ValueError("Each part of the IP address must be between 0 and 255.")
-            print(f"Valid IP address: {ip_address}")
-            break
-        except ValueError as e:
-            print(f"Invalid IP address: {e}")
+    setUserName()
+    setUserIP()
+    firstP2PServer()
     # ------------------------------------------------------------------------------------------------------------
 
     # IMPORTANT
@@ -106,6 +76,20 @@ def main():
     #     print("Exiting...")
 
     print("Complete!")
+
+
+# This will be the only function besides main that interacts with the user
+def runPeer():
+    """
+    Needs to be implemented. This will display the files to the user, show them lists of peers, allow them
+    to download files etc.
+    You have to interact with the user here. No need for a gui, just assume they know what they're doing
+    """
+
+    # todo: Request File from server
+    # todo: Disconnect from server
+
+    return
 
 
 # "Server" in front a print statement indicates the Server sent it
@@ -144,20 +128,6 @@ def runServer():
 
         for thread in threads:
             thread.join()
-
-
-# This will be the only function besides main that interacts with the user
-def runPeer():
-    """
-    Needs to be implemented. This will display the files to the user, show them lists of peers, allow them
-    to download files etc.
-    You have to interact with the user here. No need for a gui, just assume they know what they're doing
-    """
-
-    # todo: Request File from server
-    # todo: Disconnect from server
-
-    return
 
 
 def initialConnect():
@@ -249,6 +219,69 @@ def clientSendRequest(peer_socket: socket, cRequest: CRequest | int) -> str:
     sendStr: cRequest = cRequest.name
     peer_socket.send(sendStr.encode())
     return peer_socket.recv(Classes.G_BUFFER).decode()
+
+
+def setUserName():
+    """
+    Sets the global username of the user
+    :return: void
+    """
+    global G_MY_USERNAME
+
+    while True:
+        try:
+            G_MY_USERNAME = input("Enter your username: ")
+            if not G_MY_USERNAME:
+                raise ValueError("Username cannot be empty.")
+            if not G_MY_USERNAME[0].isalpha():
+                raise ValueError("Username must start with a letter.")
+            if not all(char.isalnum() or char == "_" for char in G_MY_USERNAME):
+                raise ValueError("Username can only contain letters, numbers, and underscores.")
+            if not 4 <= len(G_MY_USERNAME) <= 25:
+                raise ValueError("Username must be between 4 and 25 characters long.")
+            break
+        except ValueError as e:
+            print(f"Invalid username: {e}")
+
+
+def setUserIP():
+    global G_MY_IP
+    while True:
+        try:
+            G_MY_IP = input("Enter your IP address (e.g., 127.0.0.1): ")
+            parts = G_MY_IP.split(".")
+            if len(parts) != 4:
+                raise ValueError("IP address must have four parts separated by dots.")
+            for part in parts:
+                if not part.isdigit():
+                    raise ValueError("Each part of the IP address must be a number.")
+                if len(part) > 3:
+                    raise ValueError("Each part of the IP address must have at most 3 digits.")
+                num = int(part)
+                if num < 0 or num > 255:
+                    raise ValueError("Each part of the IP address must be between 0 and 255.")
+            print(f"Valid IP address: {G_MY_IP}")
+            break
+        except ValueError as e:
+            print(f"Invalid IP address: {e}")
+
+
+def firstP2PServer():
+    print("Start server? (Yes or No)\n")
+
+    while True:
+        start: str = input().lower()
+        if(start == "yes" or start == "no"):
+            break
+        else:
+            print("Please respond with yes or no")
+    if(start == 'yes'):
+        runServer()
+    else:
+        return
+
+    raise AssertionError
+
 
 
 def get_user_input(input_queue):
