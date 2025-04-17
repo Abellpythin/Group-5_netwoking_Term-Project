@@ -9,6 +9,7 @@ import time
 import queue
 import os
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 # Import everything from Classes
 import Classes
@@ -130,8 +131,6 @@ def handshakeWithServer(peer_socket: socket.socket) -> bool:
                 for i, peer in enumerate(G_peerList, 1):
                     synchronized_print(f"  {i}. {peer.username} @ {peer.addr}")
                 continue
-
-
             if user_input == "1":
                 list_all_files()
             elif user_input == "2":
@@ -467,6 +466,7 @@ def runPeer():
 
     """
     A simple CLI loop for user actions:
+      0) Register with server & show live peers
       1) List local files
       2) List known peers
       3) Connect to a chosen peer
@@ -486,7 +486,7 @@ def runPeer():
     try:
         while not G_ENDPROGRAM:
             print("\n--- P2P MENU ---")
-            print("0) Register with server & show live peers")
+            print("0) Register with server & show live peers")  # <— ADDED
             print("1) List local files")
             print("2) List known peers")
             print("3) Connect to a chosen peer from G_peerList")
@@ -497,6 +497,7 @@ def runPeer():
 
             choice = input("Enter choice: ").strip()
 
+            # <— BEGIN ADDED BLOCK
             if choice == "0":
                 synchronized_print("[Peer] Registering with server…")
                 initialConnect()
@@ -504,6 +505,7 @@ def runPeer():
                 for i, p in enumerate(G_peerList, 1):
                     synchronized_print(f"   {i}. {p.username} @ {p.addr}")
                 continue
+            # END ADDED BLOCK —>
 
             if choice == "1":
                 local_peer.displayCurrentFiles()
@@ -577,6 +579,7 @@ def runPeer():
         G_ENDPROGRAM = True
         if current_peer_socket:
             current_peer_socket.close()
+
 
 
 def main():
