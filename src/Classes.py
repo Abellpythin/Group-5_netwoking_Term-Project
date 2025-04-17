@@ -129,7 +129,7 @@ class Peer:
 
 class Server:
     # Default should be set to macbook's actual ip later
-    def __init__(self, address: tuple = ('127.0.0.1', 5001)):
+    def __init__(self, address: tuple[str, int]= ('127.0.0.1', 5001)):
         self.address: tuple[str, int] = address
         self.socket: socket.socket | None = None
 
@@ -183,11 +183,9 @@ class Server:
             # Matching string with string
             match clientRequest:
                 case CRequest.ConnectRequest.name:
-                    print("Server: I have been requested to connect ------")
                     requestsHandled = self.confirmConnection(clientSocket)
 
                 case CRequest.AddMe.name:
-                    print("Server: Client wants me to add them")
                     requestsHandled = self.initialConnectionHandler(clientSocket)
 
                 case CRequest.PeerList.name:
@@ -202,10 +200,7 @@ class Server:
                 case _:
                     requestsHandled = False
 
-            print("Server: Successfully sent data back")
-
-            # This will timeout after 60 seconds
-            #I have set timeout to 10 seconds for debugging purposes
+            # This will optionally timeout after 60 seconds
             try:
                 clientRequest: str = clientSocket.recv(G_BUFFER).decode()
             except TimeoutError as e:
@@ -229,7 +224,6 @@ class Server:
         # Receive client's PeerList object describing themselves
         clientResponse: str = self.serverSendResponse(clientSocket, SResponse.SendYourInfo)
 
-        print("Server client peer data: ", clientResponse)
         clientPeer: PeerList = peerList_from_dict(json.loads(clientResponse))
 
         with G_peerListLock:
@@ -294,7 +288,8 @@ class Server:
 
         G_FileList.extend([file_from_dict(item) for item in json.loads(clientResponse)])
 
-        print("I have received files")
+        # Comment these 3 lines out once project completed [debugging]
+        print("Line 296 Classes: I have received files")
 
         for file in G_FileList:
             print(file.fileName)

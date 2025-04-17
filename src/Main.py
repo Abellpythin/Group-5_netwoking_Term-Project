@@ -124,12 +124,16 @@ def runServer():
 
         while not G_ENDPROGRAM:
             """
-            Todo: What happens when user ends program while server listens?
+            # In theory, this while loop is ok. conn will send the socket to the thread
+            # then be assigned to a NEW socket. The previous socket will be handled by the
+            # clientRequest function
+            # 
+            # Todo: What happens when user ends program while server listens?
             """
             conn, addr = listening_socket.accept()  # Accepts 1 connection at a time
 
             # Optional settimeout so clients can't linger for too long
-            #conn.settimeout(60)
+            # conn.settimeout(60)
 
             #IMPORTANT You will feel suicidal if you don't heed this warning
             # WHEN MAKING A THREAD THAT HAS ARGUMENTS
@@ -139,7 +143,8 @@ def runServer():
             thread: threading.Thread = threading.Thread(target=myServer.clientRequest, args=(conn,))
             threads.append(thread)
             thread.start()
-            # Create method to send in a thread
+            # Create method to send in a thread: No clue what this means future me
+            # Adding break statement just to debug runPeer and ensure it runs continuously
             break
 
         for thread in threads:
@@ -172,9 +177,9 @@ def initialConnect():
         # inputs needs to be put into a separate function so it can run as a thread
         # Make sure to error handle later
 
-        connectionSuccess: bool = True
+        connectionSuccess: bool = False
 
-        while connectionSuccess:
+        while not connectionSuccess:
             serverIP: str
             serverPort: int
             serverIP, serverPort = getServerAddress()
@@ -186,14 +191,12 @@ def initialConnect():
                 serverResponse: str = clientSendRequest(peer_socket, CRequest.ConnectRequest)
 
                 # For future error implementation
-                print("1. Server Response: ", serverResponse)
                 if serverResponse != SResponse.Connected.name:
                     raise Exception("Something went wrong")
 
                 # Sends a second request asking to add this user into the peer network
                 serverResponse = clientSendRequest(peer_socket, CRequest.AddMe)
 
-                print("2. Server Response: ", serverResponse)
                 if serverResponse != SResponse.SendYourInfo.name:
                     raise Exception("Something went wrong")
 
@@ -212,7 +215,6 @@ def initialConnect():
                 # Yeah I know bad name deal with it or change all uses of it
                 Classes.G_peerList = [Classes.peerList_from_dict(item) for item in json.loads(serverResponse)]
 
-                print(Classes.G_peerList)
 
                 serverResponse = clientSendRequest(peer_socket, CRequest.SendMyFiles)
 
@@ -226,6 +228,8 @@ def initialConnect():
             except (TimeoutError, InterruptedError, ConnectionRefusedError) as err:
 
                 print("Connection did not go through. Check the Client IP and Port")
+
+            connectionSuccess = not connectionSuccess
 
 
 def clientSendRequest(peer_socket: socket, cRequest: CRequest | int) -> str:
