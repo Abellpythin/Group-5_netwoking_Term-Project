@@ -238,7 +238,7 @@ def initialConnect():
             print("Connection did not go through. Check the Client IP and Port")
 
 
-def clientSendRequest(peer_socket: socket, cRequest: CRequest) -> str:
+def clientSendRequest(peer_socket: socket, cRequest: CRequest | int) -> str:
     """
     Sends a request to a server
     :param peer_socket:
