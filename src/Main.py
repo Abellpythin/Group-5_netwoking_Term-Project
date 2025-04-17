@@ -49,39 +49,39 @@ def main():
 
     # ------------------------------------------------------------------------------------------------------------
     # Uncomment when done debugging
-    # while True:
-    #     try:
-    #         G_MY_USERNAME = input("Enter your username: ")
-    #         if not G_MY_USERNAME:
-    #             raise ValueError("Username cannot be empty.")
-    #         if not G_MY_USERNAME[0].isalpha():
-    #             raise ValueError("Username must start with a letter.")
-    #         if not all(char.isalnum() or char == "_" for char in G_MY_USERNAME):
-    #             raise ValueError("Username can only contain letters, numbers, and underscores.")
-    #         if not 4 <= len(G_MY_USERNAME) <= 25:
-    #             raise ValueError("Username must be between 4 and 25 characters long.")
-    #         break
-    #     except ValueError as e:
-    #         print(f"Invalid username: {e}")
-    #
-    # while True:
-    #     try:
-    #         ip_address = input("Enter your IP address (e.g., 127.0.0.1): ")
-    #         parts = ip_address.split(".")
-    #         if len(parts) != 4:
-    #             raise ValueError("IP address must have four parts separated by dots.")
-    #         for part in parts:
-    #             if not part.isdigit():
-    #                 raise ValueError("Each part of the IP address must be a number.")
-    #             if len(part) > 3:
-    #                 raise ValueError("Each part of the IP address must have at most 3 digits.")
-    #             num = int(part)
-    #             if num < 0 or num > 255:
-    #                 raise ValueError("Each part of the IP address must be between 0 and 255.")
-    #         print(f"Valid IP address: {ip_address}")
-    #         break
-    #     except ValueError as e:
-    #         print(f"Invalid IP address: {e}")
+    while True:
+        try:
+            G_MY_USERNAME = input("Enter your username: ")
+            if not G_MY_USERNAME:
+                raise ValueError("Username cannot be empty.")
+            if not G_MY_USERNAME[0].isalpha():
+                raise ValueError("Username must start with a letter.")
+            if not all(char.isalnum() or char == "_" for char in G_MY_USERNAME):
+                raise ValueError("Username can only contain letters, numbers, and underscores.")
+            if not 4 <= len(G_MY_USERNAME) <= 25:
+                raise ValueError("Username must be between 4 and 25 characters long.")
+            break
+        except ValueError as e:
+            print(f"Invalid username: {e}")
+
+    while True:
+        try:
+            ip_address = input("Enter your IP address (e.g., 127.0.0.1): ")
+            parts = ip_address.split(".")
+            if len(parts) != 4:
+                raise ValueError("IP address must have four parts separated by dots.")
+            for part in parts:
+                if not part.isdigit():
+                    raise ValueError("Each part of the IP address must be a number.")
+                if len(part) > 3:
+                    raise ValueError("Each part of the IP address must have at most 3 digits.")
+                num = int(part)
+                if num < 0 or num > 255:
+                    raise ValueError("Each part of the IP address must be between 0 and 255.")
+            print(f"Valid IP address: {ip_address}")
+            break
+        except ValueError as e:
+            print(f"Invalid IP address: {e}")
     # ------------------------------------------------------------------------------------------------------------
 
     # IMPORTANT
@@ -128,7 +128,8 @@ def runServer():
             conn, addr = listening_socket.accept()  # Accepts 1 connection at a time
 
             #Set to 60 once done debugging
-            conn.settimeout(10)
+            # While debugging set to 10
+            conn.settimeout(60)
 
             #IMPORTANT You will feel suicidal if you don't heed this warning
             # WHEN MAKING A THREAD THAT HAS ARGUMENTS
@@ -182,12 +183,12 @@ def initialConnect():
         # When locally testing, '127.0.0.1' or '0.0.0.0' should be used
         # inputs needs to be put into a separate function so it can run as a thread
         # Make sure to error handle later
-        # serverIP: str = input("Type the Ip address of server: ")
-        # serverPort: int = int(input("Type the Port number of server: "))
+        serverIP: str = input("Type the Ip address of server: ")
+        serverPort: int = int(input("Type the Port number of server: "))
 
         #Delete this and uncomment above when done debugging
-        serverIP: str = '127.0.0.1'
-        serverPort: int = 12000
+        # serverIP: str = '127.0.0.1'
+        # serverPort: int = 12000
 
         try:
             peer_socket.connect((serverIP, serverPort))
