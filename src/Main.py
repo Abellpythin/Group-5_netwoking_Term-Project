@@ -87,16 +87,23 @@ def runPeer():
 
     # todo: Request File from server
     # todo: Disconnect from server
+    # todo: Add a back input method so when a user clicks something, they can go back
     global G_ENDPROGRAM
-    time.sleep(5)
-    print("------------")
+
+    #Debugging
+    time.sleep(2)
+
+    userOption: int | chr
+
+    print("---------------")
+    print("Choose a number to select an option or press . to exit\n")
     while not G_ENDPROGRAM:
         try:
-            print("""
-            -Hey Lol
-            -Testing
-            -Ok
-            """)
+            print("1. View Available Peers in Network\n"  # No direct functionality needed
+                  "2. View Available Files in Network"  # From 2. The user can select and download this file
+                  "3. Refresh PeerList"
+                  "Press . to exit")
+            userOption = input()
         except:
             1
         finally:
