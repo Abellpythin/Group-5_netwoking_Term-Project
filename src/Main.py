@@ -5,10 +5,9 @@
 # Limit how many files can be requested from one server
 from __future__ import annotations
 import json
-import os
 import queue
 import threading
-import socket # For type annotation
+import socket  # For type annotation
 
 import Classes  # Classes.G_peerList
 from Classes import Peer
@@ -17,7 +16,7 @@ from Classes import CRequest
 from Classes import SResponse
 from Classes import PeerList
 
-#from Classes import G_peerList | This does not work like c++
+# from Classes import G_peerList | This does not work like c++
 
 
 # G for global variable
@@ -33,10 +32,10 @@ G_MAX_CONNECTIONS: int = 5
 G_ENDPROGRAM: bool = False
 
 # Queue necessary for I/O operations
-G_input_queue = queue.Queue()
+G_input_queue: queue.Queue = queue.Queue()
 
 # Used to synchronize print statements among threads. Used for debugging
-G_print_lock = threading.Lock()
+G_print_lock: threading.Lock = threading.Lock()
 
 
 # After running any socket, wait at least 30 seconds or else you'll get this error
@@ -85,16 +84,15 @@ def main():
     #         print(f"Invalid IP address: {e}")
     # ------------------------------------------------------------------------------------------------------------
 
-
-    #IMPORTANT
+    # IMPORTANT
     # FROM THIS POINT ON ANY I/O OPERATIONS (input, open, with, etc) NEEDS TO BE IN SEPARATE THREAD
     # Make sure when creating "Thread" not to include (). You are not calling the method
-    serverThread = threading.Thread(target=runServer, daemon=True)
+    serverThread: threading.Thread = threading.Thread(target=runServer, daemon=True)
     serverThread.start()
 
     initialConnect()
 
-    peerThread = threading.Thread(target=runPeer, daemon=True)
+    peerThread: threading.Thread = threading.Thread(target=runPeer, daemon=True)
     peerThread.start()
 
     # Main will not conclude until both threads join so no need for infinite while loop
@@ -119,12 +117,12 @@ def runServer():
     There should be NO IO OPERATIONS IN THE SERVER
     :return:
     """
-    myServer = Server((G_MY_IP, G_MY_PORT))
+    myServer: Server = Server((G_MY_IP, G_MY_PORT))
 
     with myServer.createTCPSocket() as listening_socket:
         # Continuously listens so need to put in while loop
         listening_socket.listen(G_MAX_CONNECTIONS)
-        threads = []
+        threads: list[threading.Thread] = []
 
         while True:
             conn, addr = listening_socket.accept()  # Accepts 1 connection at a time
@@ -132,13 +130,12 @@ def runServer():
             #Set to 60 once done debugging
             conn.settimeout(10)
 
-
             #IMPORTANT You will feel suicidal if you don't heed this warning
             # WHEN MAKING A THREAD THAT HAS ARGUMENTS
             # ENSURE THAT IT HAS A COMMA AT THE END OF THE TUPLE
             # EX: (number, str, letter,) <-----
             # Notice the comma at the end. This tells the method that it is an iterable
-            thread = threading.Thread(target=myServer.clientRequest, args=(conn,))
+            thread: threading.Thread = threading.Thread(target=myServer.clientRequest, args=(conn,))
             threads.append(thread)
             thread.start()
             # Create method to send in a thread
@@ -156,9 +153,8 @@ def runPeer():
     You have to interact with the user here. No need for a gui, just assume they know what they're doing
     """
 
-    #todo: Request File from server
-    #todo: Disconnect from server
-
+    # todo: Request File from server
+    # todo: Disconnect from server
 
     return
 
@@ -174,14 +170,13 @@ def initialConnect():
     :return:
     """
     # Create Peer class for user
-    selfPeer = Peer(address=(G_MY_IP, G_MY_PORT))
+    selfPeer: Peer = Peer(address=(G_MY_IP, G_MY_PORT))
     selfPeer.initializeFiles()
 
-    userPeer = PeerList((G_MY_IP, G_MY_PORT), G_MY_USERNAME)
+    userPeer: PeerList = PeerList((G_MY_IP, G_MY_PORT), G_MY_USERNAME)
 
     # !!!! Add a while loop to keep asking for ip and port if error occurs
     with selfPeer.createTCPSocket() as peer_socket:
-
 
         #Uncomment when done debugging
         # When locally testing, '127.0.0.1' or '0.0.0.0' should be used
@@ -190,23 +185,20 @@ def initialConnect():
         # serverIP: str = input("Type the Ip address of server: ")
         # serverPort: int = int(input("Type the Port number of server: "))
 
-
         #Delete this and uncomment above when done debugging
-        serverIP = '127.0.0.1'
-        serverPort = 12000
+        serverIP: str = '127.0.0.1'
+        serverPort: int = 12000
 
         try:
             peer_socket.connect((serverIP, serverPort))
 
-
             # Ask to connect to server and Receive message from server confirming connection
-            serverResponse = clientSendRequest(peer_socket, CRequest.ConnectRequest)
+            serverResponse: str = clientSendRequest(peer_socket, CRequest.ConnectRequest)
 
             # For future error implementation
             print("1. Server Response: ", serverResponse)
             if serverResponse != SResponse.Connected.name:
                 raise Exception("Something went wrong")
-
 
             # Sends a second request asking to add this user into the peer network
             serverResponse = clientSendRequest(peer_socket, CRequest.AddMe)
@@ -216,13 +208,13 @@ def initialConnect():
                 raise Exception("Something went wrong")
 
             # Sends the user's info to be added to peer list
-            jsonUserPeer = json.dumps(userPeer.__dict__())
+            jsonUserPeer: str = json.dumps(userPeer.__dict__())
             peer_socket.send(jsonUserPeer.encode())
 
             # Receives an updated list of peer (including this user)
             serverResponse = peer_socket.recv(Classes.G_BUFFER).decode()
 
-            #Debugging
+            # Debugging
             print("Server's peer list: ", serverResponse)
 
             # Turns the json LIST of peerList(the class) into separate peerList(object individually)
@@ -237,7 +229,7 @@ def initialConnect():
             if serverResponse != SResponse.SendYourInfo.name:
                 raise Exception("Something went wrong")
 
-            fileJsonList = json.dumps([file.__dict__() for file in selfPeer.files])
+            fileJsonList: str = json.dumps([file.__dict__() for file in selfPeer.files])
 
             peer_socket.send(fileJsonList.encode())
 
@@ -253,7 +245,7 @@ def clientSendRequest(peer_socket: socket, cRequest: CRequest) -> str:
     :param cRequest:
     :return: String representing Server response
     """
-    sendStr = cRequest.name
+    sendStr: cRequest = cRequest.name
     peer_socket.send(sendStr.encode())
     return peer_socket.recv(Classes.G_BUFFER).decode()
 

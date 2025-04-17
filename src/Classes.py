@@ -10,7 +10,7 @@ import HelperFunctions
 
 
 # Will it contain names? Just addresses?
-G_BUFFER = 2500000  # 2.5 mB
+G_BUFFER: int = 2500000  # 2.5 mB
 
 # ------------------------------------------------------------------------------------------------------------
 # Remember to add thread lock to this object. If multiple threads try to add new clients then we're doomed
@@ -63,11 +63,11 @@ class Peer:
     def __init__(self, address=('127.0.0.1', 5001), username: str=None, files=None, online: bool=True):
         if files is None:
             files = []
-        self.address = address
-        self.username = username
+        self.address: tuple[str, int] = address
+        self.username: str = username
         self.files: list[File] = files
-        self.online = online
-        self.socket = None
+        self.online: bool = online
+        self.socket: socket.socket | None = None
 
     def createTCPSocket(self):
         # This socket should be used with 'with' keyword so no explicit closing of socket is needed
@@ -75,6 +75,9 @@ class Peer:
         return self.socket
 
     def initializeFiles(self) -> None:
+
+        # The type of currenDirectory changes depending on what os software is being used
+        # Ex: pathlib.WindowsPath, pathlib.PosixPath, etc...
         currentDirectory = Path.cwd()
         parent_of_parent_directory = currentDirectory.parent / "Files"
         fileNames = HelperFunctions.list_files_in_directory(parent_of_parent_directory)
@@ -83,8 +86,6 @@ class Peer:
         # Just find file name in Files directory
         for name in fileNames:
             self.files.append(File(name, self.username, self.address))
-
-        return
 
     def addFile(self, file: File):
         self.files.append(file)
@@ -98,7 +99,6 @@ class Peer:
         self.online = not self.online
         return self.online
 
-
     def requestPeerList(self, serverAddress: tuple) -> None:
         """
         Request List of peers from chosen serverAddress
@@ -106,10 +106,10 @@ class Peer:
         :return: List of peers currently online in network
         """
         global G_peerList
-        self.socket.send(CRequest.PeerList.name.encode)
+        self.socket.send(CRequest.PeerList.name.encode())
 
         # Receive json data containing peerlist data
-        data = self.socket.recv(G_BUFFER)
+        data: str = self.socket.recv(G_BUFFER).decode()
         G_peerList = [peerList_from_dict(item) for item in json.loads(data)]
 
     def fileRequest(self):
@@ -126,16 +126,26 @@ class Peer:
 class Server:
     # Default should be set to macbook's actual ip later
     def __init__(self, address: tuple = ('127.0.0.1', 5001)):
-        self.address = address
-        self.socket = None
+        self.address: tuple[str, int] = address
+        self.socket: socket.socket | None = None
 
     def createTCPSocket(self):
+        """
+        This method creates and assigns a tcp socket to this server object
+        :return: socket object owned by this object
+        """
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.bind(self.address)
         return self.socket
 
     def serverSendResponse(self, server_socket: socket, sResponse: SResponse) -> str:
-        sendStr = sResponse.name
+        """
+        This method sends the server's response to the client
+        :param server_socket:
+        :param sResponse:
+        :return: client's response in utf8 characters
+        """
+        sendStr: sResponse = sResponse.name
         server_socket.send(sendStr.encode())
         return server_socket.recv(G_BUFFER).decode()
 
@@ -158,9 +168,9 @@ class Server:
         clientRequest: str = clientSocket.recv(G_BUFFER).decode()
 
         # a timer to ensure the server doesn't wait forever
-        startTime = time.time()
-        endTime = time.time()
-        length = endTime - startTime
+        startTime: float = time.time()
+        endTime: float = time.time()
+        length: float = endTime - startTime
 
         while (length < 60) and (requestsHandled):
             # Reset everytime a successful connection occurs
@@ -205,12 +215,17 @@ class Server:
         return requestsHandled
 
     def initialConnectionHandler(self, clientSocket: socket) -> bool:
+        """
+        This method
+        :param clientSocket:
+        :return:
+        """
         # Ask client to Send their PeerList describing themselves
         # Receive client's PeerList object describing themselves
         clientResponse: str = self.serverSendResponse(clientSocket, SResponse.SendYourInfo)
 
         print("Server client peer data: ", clientResponse)
-        clientPeer = peerList_from_dict(json.loads(clientResponse))
+        clientPeer: PeerList = peerList_from_dict(json.loads(clientResponse))
 
         # Puts the peer in peerlist if not currently in peerlist
         G_peerList.append(clientPeer) if clientPeer not in G_peerList else None
@@ -228,7 +243,7 @@ class Server:
         G_peerList.append(PeerList(('Debugging', 12000), "Let's Go"))
         # ------------------------------------------------------------------------------------------------------------
 
-        json_data = json.dumps([peer.__dict__() for peer in G_peerList])
+        json_data: str = json.dumps([peer.__dict__() for peer in G_peerList])
 
         # Change to send in chunks perhaps
         clientSocket.send(json_data.encode())
@@ -236,7 +251,7 @@ class Server:
         return True
 
     def confirmConnection(self, clientSocket: socket) -> bool:
-        success = True
+        success: bool = True
         try:
             clientSocket.send(SResponse.Connected.name.encode())
 
@@ -247,6 +262,7 @@ class Server:
         finally:
             return success
 
+    #Todo: This method
     def sendRequestedFile(self, clientSocket: socket):
         """
         This will send the requested file
@@ -281,9 +297,9 @@ class Server:
 
 class File:
     def __init__(self, fileName: str, userName, addr=None):
-        self.fileName = fileName
-        self.userName = userName
-        self.addr: tuple | None = addr
+        self.fileName: str = fileName
+        self.userName: str = userName
+        self.addr: tuple[str, int] | None = addr
 
     def __dict__(self):
         return {'fileName': self.fileName, 'userName': self.userName, 'addr': self.addr}
@@ -294,9 +310,9 @@ class PeerList:
     The peer list will be used to not only connect to peers but to display what users
     are online
     """
-    def __init__(self, addr: tuple, username: str):
-        self.addr = addr
-        self.username = username
+    def __init__(self, addr: tuple[str, int], username: str):
+        self.addr: tuple[str, int] | None = addr
+        self.username: str = username
 
     # if you're unfamiliar with '__methodName__' look up "python dunder methods"
     def __dict__(self):
@@ -308,14 +324,6 @@ class PeerList:
     def __eq__(self, other: PeerList):
         return (self.addr, self.username) == (other.addr, other.username)
 
-
-def peerList_from_dict(data):
-    """
-    Unpacks Json serialization of PeerList
-    :param data:
-    :return:
-    """
-    return PeerList(**data)
 
 
 # For future security it MIGHT be useful to make methods that check the ip address
