@@ -153,8 +153,6 @@ def list_all_files():
         if peer.address == (G_MY_IP, G_MY_PORT):
             continue  # Skip our own files
 
-
-
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.settimeout(5)
@@ -452,6 +450,12 @@ def connectToPeerViaIndex(index: int) -> socket.socket | None:
 
 
 def runPeer():
+    """
+    Todo: Add functionality for user to add a peer
+    :return:
+    """
+
+
     """
     A simple CLI loop for user actions:
       1) List local files
