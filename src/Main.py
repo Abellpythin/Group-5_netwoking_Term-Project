@@ -110,6 +110,7 @@ def handshakeWithServer(peer_socket: socket.socket) -> bool:
         try:
             # Display menu options:
             synchronized_print("\n===== Peer Network Menu =====")
+            synchronized_print("0. Add Peer to server ")
             synchronized_print("1. List all available files in network")
             synchronized_print("2. List all peers in network")
             synchronized_print("3. Download a file")
@@ -122,6 +123,14 @@ def handshakeWithServer(peer_socket: socket.socket) -> bool:
                 user_input = G_input_queue.get(timeout=1)
             except queue.Empty:
                 continue
+            if user_input == "0":
+                synchronized_print("[Peer] Registering with server…")
+                initialConnect()
+                synchronized_print("[Peer] → Live peers from server:")
+                for i, peer in enumerate(G_peerList, 1):
+                    synchronized_print(f"  {i}. {peer.username} @ {peer.addr}")
+                continue
+
 
             if user_input == "1":
                 list_all_files()
@@ -477,6 +486,7 @@ def runPeer():
     try:
         while not G_ENDPROGRAM:
             print("\n--- P2P MENU ---")
+            print("0) Register with server & show live peers")
             print("1) List local files")
             print("2) List known peers")
             print("3) Connect to a chosen peer from G_peerList")
@@ -486,6 +496,14 @@ def runPeer():
             print("7) Quit")
 
             choice = input("Enter choice: ").strip()
+
+            if choice == "0":
+                synchronized_print("[Peer] Registering with server…")
+                initialConnect()
+                synchronized_print("[Peer] → Live peers from server:")
+                for i, p in enumerate(G_peerList, 1):
+                    synchronized_print(f"   {i}. {p.username} @ {p.addr}")
+                continue
 
             if choice == "1":
                 local_peer.displayCurrentFiles()
