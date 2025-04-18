@@ -28,7 +28,7 @@ import HelperFunctions as hf
 
 # G for global variable
 # The port number is preemptively defined so no need to ask user
-G_MY_PORT: int = 12000
+G_MY_PORT: int = 59878
 G_MY_IP: str = ''
 G_MY_USERNAME: str | None = "Debugger"
 G_MAX_CONNECTIONS: int = 5
@@ -225,7 +225,6 @@ def initialConnect():
 
         while not connectionSuccess:
             g_serverIp, g_serverPort = hf.getServerAddress()
-            print(f"-------||||{g_serverIp},{g_serverIp}")
 
             try:
                 # Timeout of 15 seconds
@@ -252,9 +251,6 @@ def initialConnect():
                 # Receives an updated list of peer (including this user)
                 serverResponse = peer_socket.recv(Classes.G_BUFFER).decode()
 
-                # Debugging
-                print("Server's peer list: ", serverResponse)
-
                 # Turns the json LIST of peerList(the class) into separate peerList(object individually)
                 # objects to be added to G_peerList(global peerlist that holds all the peers)
                 # Yeah I know bad name deal with it or change all uses of it
@@ -272,6 +268,8 @@ def initialConnect():
 
             except (TimeoutError, InterruptedError, ConnectionRefusedError) as err:
                 print("Connection did not go through. Check the Client IP and Port")
+                peer_socket.close()
+                peer_socket = selfPeer.createTCPSocket()
 
 
 def get_user_input(input_queue):

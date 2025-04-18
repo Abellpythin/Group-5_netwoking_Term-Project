@@ -111,6 +111,7 @@ def getServerAddress() -> tuple[str, int]:
     while True:
         try:
             serverIp = input("Enter the peer's IP address (e.g., 127.0.0.1): ")
+            print()
             parts = serverIp.split(".")
             if len(parts) != 4:
                 raise ValueError("IP address must have four parts separated by dots.\n")
@@ -130,8 +131,8 @@ def getServerAddress() -> tuple[str, int]:
     serverPort: int = 0
     while True:
         try:
-            serverPort = int(input("Enter the Port Number of the peer (default is 12000): "))
-
+            serverPort = int(input("Enter the Port Number of the peer (default is 59878): "))
+            print()
             if (1024 <= serverPort <= 65535):
                 break
             else:
@@ -192,6 +193,8 @@ def handleDownloadFileRequest(clientAddress: tuple[str, int], serverAddress: tup
               # Location should never be unknown. How else would you get the file
               f"|           Address: {file.addr if file.addr else "Location Unknown"}\n")
         counter += 1
+    print()
+
 
     userFileChoice: Classes.File
     userChoice: str | int  # The number they picked
