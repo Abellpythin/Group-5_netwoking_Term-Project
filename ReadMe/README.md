@@ -2,10 +2,21 @@
 
 python version 3.12
 
-If you're using windows make sure to open your port
-https://answers.microsoft.com/en-us/windows/forum/all/how-to-open-port-in-windows-10-firewall/f38f67c8-23e8-459d-9552-c1b94cca579a
+# If using windows, everything will give you problems
+> Here's a checklist to ensure your windows machine can use our p2p
+> network
+> 1. Go to command and try pinging the other computer
+> on a local network. Make sure to use the local IP address
+> 2. Make sure your windows machine identifies the network as private
+> and ENABLE FILE AND PRINTER SHARING
+> 3. If File and Printer sharing was off and you turned it off,
+> make sure to restart your device. 
 
-computer networking Term Project 
+# Steps to Running Program
+> Go to terminal and type "ipconfig getifaddr en0" (or for windows
+> "ipconfig" and find the I)
+
+### Computer Networking Term Project 
 ![img.png](img.png)
 
  Main.py FSM Diagram:
