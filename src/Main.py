@@ -100,15 +100,40 @@ def runPeer():
     while not G_ENDPROGRAM:
         try:
             print("1. View Available Peers in Network\n"  # No direct functionality needed
-                  "2. View Available Files in Network"  # From 2. The user can select and download this file
-                  "3. Refresh PeerList"
+                  "2. View Available Files in Network\n"  # From 2. The user can select and download this file
+                  "3. Refresh PeerList\n"
                   "Press . to exit")
             userOption = input()
-        except:
-            1
-        finally:
-            return
+            userDigit: bool = userOption.isdigit()
 
+            if (not userDigit) and (not (userOption == '.')):
+                raise ValueError("Please enter a valid input!\n")
+
+            if userOption == '.':
+                G_ENDPROGRAM = True
+                break
+
+            userOption = int(userOption)
+            # This value (3) will change as options get implemented
+            if 1 <= userOption <= 3:
+                match userOption:
+                    case 1:
+                        # implement as separate branch because my grade depends on it
+                        pass
+                    case 2:
+                        pass
+                    case 3:
+                        pass
+                    case _:
+                        raise ValueError("runPeer match statement: Something seriously went wrong to get here")
+            else:
+                raise ValueError("Please select from the displayed options.\n")
+        except ValueError as e:
+            print(e)
+        finally:
+            print("---------------------")
+
+    print("Program wrapped up. Thanks for using!\n")
     return
 
 
