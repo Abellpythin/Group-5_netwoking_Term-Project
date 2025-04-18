@@ -21,6 +21,8 @@ import HelperFunctions as hf
 
 # from Classes import G_peerList | This does not work like c++
 
+# Use your systems local IP address (IPV4 when typing ipconfig pn windows, env0 on mac)
+
 
 # G for global variable
 # The port number is preemptively defined so no need to ask user
@@ -47,12 +49,17 @@ def main():
     The main method will be used for managing threads and initializing the initial connection to the 
     peer network
     """
+    global G_MY_USERNAME
+    global G_MY_IP
+
     print("Welcome to our P2P Network", end='\n\n')
 
     # ------------------------------------------------------------------------------------------------------------
     # Uncomment when done debugging
-    hf.setUserName()
-    hf.setUserIP()
+    G_MY_USERNAME = hf.setUserName()
+    G_MY_IP = hf.setUserIP()
+    print(G_MY_USERNAME)
+    print(G_MY_IP)
     # ------------------------------------------------------------------------------------------------------------
 
     # IMPORTANT
@@ -219,6 +226,8 @@ def initialConnect():
             serverIP, serverPort = hf.getServerAddress()
 
             try:
+                # Timeout of 15 seconds
+                peer_socket.settimeout(15)
                 peer_socket.connect((serverIP, serverPort))
 
                 # Ask to connect to server and Receive message from server confirming connection
@@ -257,12 +266,11 @@ def initialConnect():
                 fileJsonList: str = json.dumps([file.__dict__() for file in selfPeer.files])
 
                 peer_socket.send(fileJsonList.encode())
+                connectionSuccess = not connectionSuccess
 
             except (TimeoutError, InterruptedError, ConnectionRefusedError) as err:
-
                 print("Connection did not go through. Check the Client IP and Port")
 
-            connectionSuccess = not connectionSuccess
 
 
 def clientSendRequest(peer_socket: socket, cRequest: CRequest | int) -> str:

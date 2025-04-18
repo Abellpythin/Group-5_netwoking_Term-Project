@@ -2,6 +2,9 @@
 
 python version 3.12
 
+If you're using windows make sure to open your port
+https://answers.microsoft.com/en-us/windows/forum/all/how-to-open-port-in-windows-10-firewall/f38f67c8-23e8-459d-9552-c1b94cca579a
+
 computer networking Term Project 
 ![img.png](img.png)
 

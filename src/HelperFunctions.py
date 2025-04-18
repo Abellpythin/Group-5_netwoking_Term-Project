@@ -16,13 +16,12 @@ def list_files_in_directory(directory_path) -> list[str]:
         print("Fail")
 
 
-def setUserName() -> None:
+def setUserName() -> str:
     """
-    Sets the global username of the user
-    :return: void
+    Asks the user for a Username then returns said name
+    :return: G_MY_USERNAME
     """
-    global G_MY_USERNAME
-
+    G_MY_USERNAME: str
     while True:
         try:
             G_MY_USERNAME = input("Enter your username: ")
@@ -38,8 +37,14 @@ def setUserName() -> None:
         except ValueError as e:
             print(f"Invalid username: {e}\n")
 
-def setUserIP() -> None:
-    global G_MY_IP
+    return G_MY_USERNAME
+
+def setUserIP() -> str:
+    """
+
+    :return:
+    """
+    G_MY_IP: str
     while True:
         try:
             G_MY_IP = input("Enter your IP address (e.g., 127.0.0.1): ")
@@ -58,6 +63,8 @@ def setUserIP() -> None:
             break
         except ValueError as e:
             print(f"Invalid IP address: {e}\n")
+
+    return G_MY_IP
 
 def waitForSecondConnection() -> None:
     """
