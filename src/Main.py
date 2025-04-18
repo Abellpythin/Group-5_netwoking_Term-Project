@@ -194,12 +194,8 @@ def runServer():
 
 def initialConnect():
     """
-    The initial connection will try to connect to an online peer. If successful it will retrieve a list
-    of peers in the network with their address and username.
-    -IF ONE PEER IS IN THE NETWORK NO THEY CANNOT CONNECT TO A PEER
-    -IF TWO PEERS ARE IN THE NETWORK THEN THERE'S ONLY TWO PEOPLE
-    -IF ONE PERSON CONNECTS TO A PEER WITH A LIST OF PEERS THEN THEY ARE ADDED TO THE NETWORK AND THE LIST
-     IS UPDATED AMONG PEERS
+    The initial Connection will connect to a peer currently online. This method handles updating the global peer list
+    and the global file list
     :return:
     """
     hf.waitForSecondConnection()
@@ -215,8 +211,6 @@ def initialConnect():
 
         #Uncomment when done debugging
         # When locally testing, '127.0.0.1' or '0.0.0.0' should be used
-        # inputs needs to be put into a separate function so it can run as a thread
-        # Make sure to error handle later
 
         connectionSuccess: bool = False
 
@@ -283,7 +277,6 @@ def clientSendRequest(peer_socket: socket, cRequest: CRequest | int) -> str:
     sendStr: cRequest = cRequest.name
     peer_socket.send(sendStr.encode())
     return peer_socket.recv(Classes.G_BUFFER).decode()
-
 
 
 def get_user_input(input_queue):

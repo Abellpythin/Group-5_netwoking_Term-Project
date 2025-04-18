@@ -12,9 +12,18 @@ python version 3.12
 > 3. If File and Printer sharing was off and you turned it off,
 > make sure to restart your device. 
 
-# Steps to Running Program
-> Go to terminal and type "ipconfig getifaddr en0" (or for windows
-> "ipconfig" and find the I)
+# Steps to Running P2P Network
+> 1. Go to terminal and type "ipconfig getifaddr en0" (or for windows
+> "ipconfig" and find the IPv4 Address). This will be your IP address.
+> 2. Next make sure you have another peer's IP address and port
+> number.
+> 3. Any files you want available for download, put in the Files folder 
+>of your IDE.
+> 4. Follow the on-screen instructions
+
+# For A-lee-a when you do documentation
+> In case I forget, I'll list the major processes here.
+> 
 
 ### Computer Networking Term Project 
 ![img.png](img.png)

@@ -14,7 +14,7 @@ import HelperFunctions
 G_BUFFER: int = 2500000  # 2.5 mB
 
 # ------------------------------------------------------------------------------------------------------------
-# Remember to add thread lock to this object. If multiple threads try to add new clients then we're doomed
+# Ensure that any modifications to these list are used with Lock
 G_peerList: list[PeerList] = []
 G_FileList: list[File] = []
 G_peerListLock: threading.Lock = threading.Lock()
@@ -77,6 +77,10 @@ class Peer:
         return self.socket
 
     def initializeFiles(self) -> None:
+        """
+        This function will automaticallu append the user's files in the Files folder to the user's files
+        :return:
+        """
 
         # The type of currenDirectory changes depending on what os software is being used
         # Ex: pathlib.WindowsPath, pathlib.PosixPath, etc...
@@ -240,9 +244,9 @@ class Server:
         # Adding this to show on local clients that it will send the whole list
         # Remember, on local clients both the server and client have the same username, ip, and port
         #REMOVE LATER DEBUGGING
-        global G_peerListLock
-        with G_peerListLock:
-            G_peerList.append(PeerList(('Debugging', 12000), "Let's Go"))
+        # global G_peerListLock
+        # with G_peerListLock:
+        #     G_peerList.append(PeerList(('Debugging', 12000), "Let's Go"))
         # ------------------------------------------------------------------------------------------------------------
 
         json_data: str = json.dumps([peer.__dict__() for peer in G_peerList])
