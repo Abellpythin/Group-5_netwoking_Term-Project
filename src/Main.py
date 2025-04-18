@@ -17,6 +17,8 @@ from Classes import CRequest
 from Classes import SResponse
 from Classes import PeerList
 
+import HelperFunctions as hf
+
 # from Classes import G_peerList | This does not work like c++
 
 
@@ -49,8 +51,8 @@ def main():
 
     # ------------------------------------------------------------------------------------------------------------
     # Uncomment when done debugging
-    setUserName()
-    setUserIP()
+    hf.setUserName()
+    hf.setUserIP()
     # ------------------------------------------------------------------------------------------------------------
 
     # IMPORTANT
@@ -104,6 +106,7 @@ def runPeer():
                   "3. Refresh PeerList\n"
                   "Press . to exit")
             userOption = input()
+            print()
             userDigit: bool = userOption.isdigit()
 
             if (not userDigit) and (not (userOption == '.')):
@@ -118,10 +121,9 @@ def runPeer():
             if 1 <= userOption <= 3:
                 match userOption:
                     case 1:
-                        # implement as separate branch because my grade depends on it
-                        pass
+                        hf.displayAvailablePeers()
                     case 2:
-                        pass
+                        hf.displayAvailableFiles()
                     case 3:
                         pass
                     case _:
@@ -193,7 +195,7 @@ def initialConnect():
      IS UPDATED AMONG PEERS
     :return:
     """
-    waitForSecondConnection()
+    hf.waitForSecondConnection()
 
     # Create Peer class for user
     selfPeer: Peer = Peer(address=(G_MY_IP, G_MY_PORT))
@@ -214,7 +216,7 @@ def initialConnect():
         while not connectionSuccess:
             serverIP: str
             serverPort: int
-            serverIP, serverPort = getServerAddress()
+            serverIP, serverPort = hf.getServerAddress()
 
             try:
                 peer_socket.connect((serverIP, serverPort))
@@ -247,7 +249,6 @@ def initialConnect():
                 # Yeah I know bad name deal with it or change all uses of it
                 Classes.G_peerList = [Classes.peerList_from_dict(item) for item in json.loads(serverResponse)]
 
-
                 serverResponse = clientSendRequest(peer_socket, CRequest.SendMyFiles)
 
                 if serverResponse != SResponse.SendYourInfo.name:
@@ -274,108 +275,6 @@ def clientSendRequest(peer_socket: socket, cRequest: CRequest | int) -> str:
     sendStr: cRequest = cRequest.name
     peer_socket.send(sendStr.encode())
     return peer_socket.recv(Classes.G_BUFFER).decode()
-
-
-def setUserName():
-    """
-    Sets the global username of the user
-    :return: void
-    """
-    global G_MY_USERNAME
-
-    while True:
-        try:
-            G_MY_USERNAME = input("Enter your username: ")
-            if not G_MY_USERNAME:
-                raise ValueError("Username cannot be empty.")
-            if not G_MY_USERNAME[0].isalpha():
-                raise ValueError("Username must start with a letter.")
-            if not all(char.isalnum() or char == "_" for char in G_MY_USERNAME):
-                raise ValueError("Username can only contain letters, numbers, and underscores.")
-            if not 4 <= len(G_MY_USERNAME) <= 25:
-                raise ValueError("Username must be between 4 and 25 characters long.")
-            break
-        except ValueError as e:
-            print(f"Invalid username: {e}")
-
-
-def setUserIP():
-    global G_MY_IP
-    while True:
-        try:
-            G_MY_IP = input("Enter your IP address (e.g., 127.0.0.1): ")
-            parts = G_MY_IP.split(".")
-            if len(parts) != 4:
-                raise ValueError("IP address must have four parts separated by dots.")
-            for part in parts:
-                if not part.isdigit():
-                    raise ValueError("Each part of the IP address must be a number.")
-                if len(part) > 3:
-                    raise ValueError("Each part of the IP address must have at most 3 digits.")
-                num = int(part)
-                if num < 0 or num > 255:
-                    raise ValueError("Each part of the IP address must be between 0 and 255.")
-            print(f"Valid IP address: {G_MY_IP}")
-            break
-        except ValueError as e:
-            print(f"Invalid IP address: {e}")
-
-
-def waitForSecondConnection():
-    """
-    This will wait for the user to confirm there is a second user that is online
-    Automation of this function would require a callback from the runServer function.
-    :return: void
-    """
-    print("If you're the first to connect, wait here")
-    print("Press n to continue.")
-
-    while True:
-        start: str = input().lower()
-        if(start == 'n'):
-            break
-        else:
-            print("Please press n")
-    return
-
-
-def getServerAddress() -> tuple[str, int]:
-    """
-    Gets the server address from user input
-    :return: (serverIp,serverPort) a tuple of the server's address
-    """
-    serverIp: str
-    while True:
-        try:
-            serverIp = input("Enter the peer's IP address (e.g., 127.0.0.1): ")
-            parts = serverIp.split(".")
-            if len(parts) != 4:
-                raise ValueError("IP address must have four parts separated by dots.")
-            for part in parts:
-                if not part.isdigit():
-                    raise ValueError("Each part of the IP address must be a number.")
-                if len(part) > 3:
-                    raise ValueError("Each part of the IP address must have at most 3 digits.")
-                num = int(part)
-                if num < 0 or num > 255:
-                    raise ValueError("Each part of the IP address must be between 0 and 255.")
-            print(f"Valid IP address: {serverIp}")
-            break
-        except ValueError as e:
-            print(f"Invalid IP address: {e}")
-
-    serverPort: int
-    while True:
-        try:
-            serverPort = int(input("Enter the Port Number of the peer (default is 12000): "))
-            if (1024 <= serverPort <= 65535):
-                break
-            else:
-                raise ValueError("Please Enter a port within the valid range: [1024, 65535]")
-        except ValueError as e:
-            print(f"Invalid Port number: {e}")
-
-    return (serverIp, serverPort)
 
 
 
