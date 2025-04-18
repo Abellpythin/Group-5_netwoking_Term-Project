@@ -34,11 +34,12 @@ class CRequest(Enum):
     ConnectRequest = 0
     AddMe = 1
     PeerList = 2
-    RequestFile = 3
-    SendMyFiles = 4
-    Handshake = 5
-    SearchFiles = 6
-    UploadFile = 7
+    ListFiles = 3      # <— CHANGE 2: added for listing files
+    DownloadFile = 4   # <— CHANGE 2: added for requesting a download
+    SendMyFiles = 5
+    Handshake = 6
+    SearchFiles = 7
+    UploadFile = 8
 
 class SResponse(Enum):
     """
@@ -128,7 +129,8 @@ def peerList_from_dict(obj: dict) -> PeerList | None:
     Unpacks JSON into PeerList object (returns None if error).
     """
     try:
-        return PeerList(**obj)
+        # <— CHANGE 3: convert JSON list into tuple to avoid duplicate entries
+        return PeerList(addr=tuple(obj['addr']), username=obj['username'])
     except (TypeError, ValueError) as e:
         synchronized_print(f"[Error] Failed to deserialize PeerList: {e}")
         return None
@@ -138,7 +140,8 @@ def file_from_dict(obj: dict) -> File | None:
     Unpacks JSON into File object (returns None if error).
     """
     try:
-        return File(**obj)
+        addr = tuple(obj['addr']) if obj.get('addr') else None
+        return File(obj['fileName'], obj['userName'], addr)
     except (TypeError, ValueError) as e:
         synchronized_print(f"[Error] Failed to deserialize File: {e}")
         return None
@@ -173,8 +176,7 @@ class Peer:
         Scan a "Files" directory (one level up) for local files, store them in self.files.
         """
         try:
-            currentDirectory = Path.cwd()
-            parent_of_parent_directory = currentDirectory.parent / "Files"
+            parent_of_parent_directory = Path.cwd().parent / "Files"
             fileNames = list_files_in_directory(parent_of_parent_directory)
             for name in fileNames:
                 self.files.append(File(name, self.username, self.address))
@@ -202,7 +204,6 @@ class Peer:
         """
         Example request to retrieve a peer list from a connected server.
         """
-        from Classes import G_peerList  # manipulate the global
         if not self.socket:
             synchronized_print("[Error] requestPeerList() called but self.socket is None.")
             return
@@ -215,7 +216,6 @@ class Peer:
                 pl = peerList_from_dict(item)
                 if pl:
                     new_peers.append(pl)
-
             G_peerList.clear()
             G_peerList.extend(new_peers)
             synchronized_print(f"[Peer] Successfully updated G_peerList with {len(new_peers)} peers.")
@@ -230,24 +230,15 @@ class Peer:
             synchronized_print("[Error] fileRequest() no socket established.")
             return
         try:
-            # 1) Let server know we want a file
-            self.socket.send(CRequest.RequestFile.name.encode())
+            self.socket.send(CRequest.DownloadFile.name.encode())
             response = self.socket.recv(G_BUFFER).decode()
-
-            # 2) Server should say "SendFileName" or "FileNotFound"
             if response == SResponse.SendFileName.name:
-                # 3) We send the actual filename
                 self.socket.send(filename.encode())
-
-                # 4) Server should reply "ReadyToReceive" or "FileNotFound"
                 response = self.socket.recv(G_BUFFER).decode()
                 if response == SResponse.ReadyToReceive.name:
-                    # Start reading the file in chunks
                     synchronized_print(f"[Client] Downloading '{filename}' ...")
-
                     Path("Downloads").mkdir(exist_ok=True)
                     local_path = Path("Downloads") / filename
-
                     with open(local_path, "wb") as f:
                         while True:
                             chunk = self.socket.recv(G_BUFFER)
@@ -259,17 +250,14 @@ class Peer:
                                 break
                             else:
                                 f.write(chunk)
-
                 elif response == SResponse.FileNotFound.name:
                     synchronized_print(f"[Client] The file '{filename}' is not available on server.")
                 else:
                     synchronized_print(f"[Error] Unexpected server response: {response}")
-
             elif response == SResponse.FileNotFound.name:
                 synchronized_print(f"[Client] The server says file is not available.")
             else:
                 synchronized_print(f"[Error] Unexpected server response: {response}")
-
         except socket.error as e:
             synchronized_print(f"[Error] fileRequest() socket error: {e}")
         except Exception as e:
@@ -287,18 +275,14 @@ class Peer:
             response = self.socket.recv(G_BUFFER).decode()
             if response == SResponse.SendSearchQuery.name:
                 self.socket.send(query.encode())
-                # Next, expect a JSON list from the server
                 response2 = self.socket.recv(G_BUFFER)
-                try:
-                    data = json.loads(response2.decode())
-                    if isinstance(data, list):
-                        synchronized_print(f"[Client] Search results for '{query}':")
-                        for fname in data:
-                            print(" -", fname)
-                    else:
-                        synchronized_print("[Client] Unexpected search result format.")
-                except json.JSONDecodeError:
-                    synchronized_print("[Error] searchFiles() => server response not valid JSON.")
+                data = json.loads(response2.decode())
+                if isinstance(data, list):
+                    synchronized_print(f"[Client] Search results for '{query}':")
+                    for fname in data:
+                        print(" -", fname)
+                else:
+                    synchronized_print("[Client] Unexpected search result format.")
             else:
                 synchronized_print(f"[Error] Unexpected response to SearchFiles: {response}")
         except socket.error as e:
@@ -312,43 +296,33 @@ class Peer:
             synchronized_print("[Error] uploadFile() no socket established.")
             return
         try:
-            local_path = (Path.cwd().parent / "Files" / filename)
+            local_path = Path.cwd().parent / "Files" / filename
             if not local_path.exists():
                 synchronized_print(f"[Error] uploadFile() => local file '{filename}' does not exist.")
                 return
-
             self.socket.send(CRequest.UploadFile.name.encode())
             response = self.socket.recv(G_BUFFER).decode()
             if response == SResponse.SendUploadFileName.name:
-                # 3) send filename
                 self.socket.send(filename.encode())
-
-                # 4) wait for ReadyToReceive
                 response2 = self.socket.recv(G_BUFFER).decode()
                 if response2 == SResponse.ReadyToReceive.name:
-                    # Send the file
                     synchronized_print(f"[Client] Uploading '{filename}' to server...")
-
                     with open(local_path, "rb") as f:
                         while True:
                             chunk = f.read(CHUNK_SIZE)
                             if not chunk:
                                 break
                             self.socket.send(chunk)
-
-                    # Finally send EndOfFile marker
                     self.socket.send(SResponse.EndOfFile.name.encode())
                     synchronized_print("[Client] Upload complete.")
                 else:
                     synchronized_print(f"[Error] Unexpected server response to UploadFile: {response2}")
             else:
                 synchronized_print(f"[Error] Unexpected response to UploadFile request: {response}")
-
         except socket.error as e:
             synchronized_print(f"[Error] uploadFile() socket error: {e}")
         except Exception as e:
             synchronized_print(f"[Error] uploadFile() general exception: {e}")
-
 
 class Server:
     """
@@ -363,9 +337,9 @@ class Server:
         Creates and binds a socket for listening. Return None if something fails.
         """
         try:
-            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.socket.bind(self.address)
-            return self.socket
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.bind(self.address)
+            return sock
         except socket.error as e:
             synchronized_print(f"[Error] Could not create or bind server socket on {self.address}: {e}")
             return None
@@ -386,8 +360,7 @@ class Server:
         Sends an SResponse, then attempts to read next message from the client.
         """
         try:
-            sendStr = sResponse.name
-            clientSocket.send(sendStr.encode())
+            clientSocket.send(sResponse.name.encode())
             response_bytes = clientSocket.recv(G_BUFFER)
             return response_bytes.decode()
         except (socket.error, UnicodeDecodeError) as e:
@@ -398,47 +371,14 @@ class Server:
         """
         Sends the global G_peerList in JSON form to the client.
         """
-        from Classes import G_peerList
         try:
-            # Example: add a debugging peer to illustrate changes
-            G_peerList.append(PeerList(('Debugging', 12000), "Let's Go"))
-
+            # CHANGE 4: removed debug stub
             json_data = json.dumps([peer.__dict__() for peer in G_peerList])
             clientSocket.send(json_data.encode())
             return True
         except (socket.error, TypeError) as e:
             synchronized_print(f"[Error] sendPeerList() could not send data: {e}")
             return False
-
-    def initialConnectionHandler(self, clientSocket: socket.socket) -> bool:
-        """
-        When client wants to be added to the network, instruct them to 'SendYourInfo',
-        read their PeerList, then send back the updated global peer list.
-        """
-        from Classes import G_peerList
-        clientResponse = self.serverSendResponse(clientSocket, SResponse.SendYourInfo)
-        if not clientResponse:
-            synchronized_print("[Error] initialConnectionHandler() => No response from client.")
-            return False
-
-        # Parse the PeerList
-        try:
-            obj = json.loads(clientResponse)
-            from Classes import peerList_from_dict
-            clientPeer = peerList_from_dict(obj)
-            if not clientPeer:
-                synchronized_print("[Error] Could not deserialize client PeerList.")
-                return False
-        except json.JSONDecodeError as e:
-            synchronized_print(f"[Error] Could not decode PeerList JSON: {e}")
-            return False
-
-        # Add peer if not existing
-        if clientPeer not in G_peerList:
-            G_peerList.append(clientPeer)
-
-        # Send updated PeerList
-        return self.sendPeerList(clientSocket)
 
     def sendRequestedFile(self, clientSocket: socket.socket) -> bool:
         """
@@ -481,7 +421,6 @@ class Server:
             synchronized_print(f"[Error] sendRequestedFile() => ReadyToReceive => {e}")
             return False
 
-        from Classes import CHUNK_SIZE
         try:
             with open(requested_path, "rb") as f:
                 while True:
@@ -490,7 +429,6 @@ class Server:
                         break
                     clientSocket.send(chunk)
 
-            # EndOfFile
             clientSocket.send(SResponse.EndOfFile.name.encode())
             synchronized_print(f"[Server] Finished sending file '{filename}'.")
             return True
@@ -503,7 +441,9 @@ class Server:
         After telling client 'SendYourInfo', receive a JSON list of File objects
         to add to the global G_FileList.
         """
-        from Classes import G_FileList, file_from_dict
+        # CHANGE 5: clear stale file list to avoid duplicates
+        G_FileList.clear()
+
         clientResponse = self.serverSendResponse(clientSocket, SResponse.SendYourInfo)
         if not clientResponse:
             synchronized_print("[Error] receiveRequestedFiles(): No file data from client.")
@@ -520,7 +460,6 @@ class Server:
             for f in G_FileList:
                 synchronized_print(f" - {f.fileName}")
             return True
-
         except json.JSONDecodeError as e:
             synchronized_print(f"[Error] Failed to decode file list: {e}")
             return False
@@ -529,7 +468,6 @@ class Server:
         """
         A basic handshake with a shared secret.
         """
-        from Classes import P2P_SECRET
         try:
             clientSocket.send(SResponse.SendSecret.name.encode())
             client_secret = clientSocket.recv(G_BUFFER).decode()
@@ -545,11 +483,10 @@ class Server:
             synchronized_print(f"[Error] handleHandshake(): {e}")
             return False
 
-    def handleSearchFiles(self, clientSocket: socket.socket):
+    def handleSearchFiles(self, clientSocket: socket.socket) -> bool:
         """
         Ask client for a query substring, then respond with a JSON array of matching filenames from G_FileList.
         """
-        from Classes import G_FileList
         try:
             clientSocket.send(SResponse.SendSearchQuery.name.encode())
         except socket.error as e:
@@ -562,26 +499,19 @@ class Server:
             synchronized_print(f"[Error] handleSearchFiles => reading query => {e}")
             return False
 
-        query_lower = query.lower()
-        matched = []
-        for f in G_FileList:
-            if query_lower in f.fileName.lower():
-                matched.append(f.fileName)
-
+        matched = [f.fileName for f in G_FileList if query.lower() in f.fileName.lower()]
         try:
-            data_json = json.dumps(matched)
-            clientSocket.send(data_json.encode())
+            clientSocket.send(json.dumps(matched).encode())
             synchronized_print(f"[Server] Sent {len(matched)} search results for '{query}'.")
             return True
         except socket.error as e:
             synchronized_print(f"[Error] handleSearchFiles => sending results => {e}")
             return False
 
-    def handleUploadFile(self, clientSocket: socket.socket):
+    def handleUploadFile(self, clientSocket: socket.socket) -> bool:
         """
         Server side of uploading a file from client.
         """
-        from Classes import G_FileList, File
         try:
             clientSocket.send(SResponse.SendUploadFileName.name.encode())
         except socket.error as e:
@@ -603,7 +533,6 @@ class Server:
         base_path = Path.cwd().parent / "Files"
         target_path = base_path / filename
 
-
         try:
             with open(target_path, "wb") as f:
                 while True:
@@ -624,72 +553,36 @@ class Server:
         G_FileList.append(new_file)
         return True
 
-    def sendRequestedFile(self, clientSocket: socket):
+    def initialConnectionHandler(self, clientSocket: socket.socket) -> bool:
         """
-        This will send the requested file
-        Any file in the peer's file list is open to be requested and sent.
-        There will be no confirmation message after it is added.
-        If the file has been removed it will send a message saying this file is unavailable
-        :return: bool
+        When client wants to be added to the network, instruct them to 'SendYourInfo',
+        read their PeerList, then send back the updated global peer list.
         """
-        #  SENDING FILE REQUEST: completed
-        # ADD CODE: Implement file sending logic here
-
-        # 1. Receive requested filename from client
-        requested_filename = clientSocket.recv(G_BUFFER).decode()
-        print(f"Received request for file: {requested_filename}")
-
-        # 2. Check if file exists in G_FileList
-        file_found = None
-        for file in G_FileList:
-            if file.fileName == requested_filename:
-                file_found = file
-                break
-
-        if not file_found:
-            # File not found, send error message
-            clientSocket.send("File unavailable".encode())
+        clientResponse = self.serverSendResponse(clientSocket, SResponse.SendYourInfo)
+        if not clientResponse:
+            synchronized_print("[Error] initialConnectionHandler() => No response from client.")
             return False
 
-        # 3. If exists, send file in chunks
         try:
-            # Get the file path (assuming files are stored in a Files directory)
-            current_directory = Path.cwd()
-            files_directory = current_directory.parent / "Files"
-            file_path = files_directory / requested_filename
-
-            # Send file size first
-            file_size = file_path.stat().st_size
-            clientSocket.send(str(file_size).encode())
-
-            # Wait for acknowledgment
-            ack = clientSocket.recv(G_BUFFER).decode()
-            if ack != "READY":
-                raise Exception("Client not ready to receive file")
-
-            # Send file in chunks
-            with open(file_path, 'rb') as f:
-                while True:
-                    chunk = f.read(G_BUFFER)
-                    if not chunk:
-                        break  # EOF
-                    clientSocket.send(chunk)
-
-            print(f"Successfully sent file: {requested_filename}")
-            return True
-
-        except Exception as e:
-            print(f"Error sending file: {e}")
-            clientSocket.send(f"Error sending file: {str(e)}".encode())
+            obj = json.loads(clientResponse)
+            clientPeer = peerList_from_dict(obj)
+            if not clientPeer:
+                synchronized_print("[Error] Could not deserialize client PeerList.")
+                return False
+        except json.JSONDecodeError as e:
+            synchronized_print(f"[Error] Could not decode PeerList JSON: {e}")
             return False
 
+        if clientPeer not in G_peerList:
+            G_peerList.append(clientPeer)
+
+        return self.sendPeerList(clientSocket)
 
     def clientRequest(self, clientSocket: socket.socket) -> bool:
         """
         Reads the client's request, then dispatches based on CRequest.
         Loops until 60s of inactivity or an error occurs.
         """
-        requestsHandled = True
         try:
             clientSocket.settimeout(60)
         except socket.error as e:
@@ -703,49 +596,35 @@ class Server:
             return False
 
         startTime = time.time()
-
-        while (time.time() - startTime) < 60 and requestsHandled:
+        while (time.time() - startTime) < 60:
             if not clientRequest:
                 synchronized_print("[Info] clientRequest() => empty request. Possibly client closed.")
                 break
 
             match clientRequest:
                 case 'Handshake':
-                    requestsHandled = self.handleHandshake(clientSocket)
-
+                    ok = self.handleHandshake(clientSocket)
                 case 'ConnectRequest':
-                    synchronized_print("[Server] ConnectRequest received.")
-                    requestsHandled = self.confirmConnection(clientSocket)
-
+                    ok = self.confirmConnection(clientSocket)
                 case 'AddMe':
-                    synchronized_print("[Server] AddMe received.")
-                    requestsHandled = self.initialConnectionHandler(clientSocket)
-
+                    ok = self.initialConnectionHandler(clientSocket)
                 case 'PeerList':
-                    synchronized_print("[Server] PeerList request received.")
-                    requestsHandled = self.sendPeerList(clientSocket)
-
-                case 'RequestFile':
-                    synchronized_print("[Server] RequestFile received.")
-                    requestsHandled = self.sendRequestedFile(clientSocket)
-
+                    ok = self.sendPeerList(clientSocket)
+                case 'ListFiles':
+                    ok = self.sendPeerList(clientSocket)
+                case 'DownloadFile':
+                    ok = self.sendRequestedFile(clientSocket)
                 case 'SendMyFiles':
-                    synchronized_print("[Server] SendMyFiles received.")
-                    requestsHandled = self.receiveRequestedFiles(clientSocket)
-
+                    ok = self.receiveRequestedFiles(clientSocket)
                 case 'SearchFiles':
-                    synchronized_print("[Server] SearchFiles request received.")
-                    requestsHandled = self.handleSearchFiles(clientSocket)
-
+                    ok = self.handleSearchFiles(clientSocket)
                 case 'UploadFile':
-                    synchronized_print("[Server] UploadFile request received.")
-                    requestsHandled = self.handleUploadFile(clientSocket)
-
+                    ok = self.handleUploadFile(clientSocket)
                 case _:
                     synchronized_print(f"[Error] Unknown request from client: {clientRequest}")
-                    requestsHandled = False
+                    ok = False
 
-            if not requestsHandled:
+            if not ok:
                 break
 
             try:
@@ -757,4 +636,5 @@ class Server:
                 synchronized_print(f"[Error] Reading subsequent request failed: {e}")
                 break
 
-        return requestsHandled
+        clientSocket.close()
+        return True
