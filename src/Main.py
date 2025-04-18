@@ -19,6 +19,8 @@ from Classes import PeerList
 
 import HelperFunctions as hf
 
+#!!!!!! Use 127.0.0.1 for debugging NOT 0.0.0.0
+
 # from Classes import G_peerList | This does not work like c++
 
 # Use your systems local IP address (IPV4 when typing ipconfig pn windows, env0 on mac)
@@ -27,9 +29,12 @@ import HelperFunctions as hf
 # G for global variable
 # The port number is preemptively defined so no need to ask user
 G_MY_PORT: int = 12000
-G_MY_IP: str = '127.0.0.1'
+G_MY_IP: str = ''
 G_MY_USERNAME: str | None = "Debugger"
 G_MAX_CONNECTIONS: int = 5
+
+g_serverIp: str | None
+g_serverPort: int | None
 
 
 # When the user wants to end the program this variable changes to True and
@@ -58,8 +63,8 @@ def main():
     # Uncomment when done debugging
     G_MY_USERNAME = hf.setUserName()
     G_MY_IP = hf.setUserIP()
-    print(G_MY_USERNAME)
     print(G_MY_IP)
+    print(G_MY_USERNAME)
     # ------------------------------------------------------------------------------------------------------------
 
     # IMPORTANT
@@ -100,17 +105,19 @@ def runPeer():
     global G_ENDPROGRAM
 
     #Debugging
-    time.sleep(2)
+    time.sleep(0.5)
 
     userOption: int | chr
 
     print("---------------")
+    print("ALWAYS remember to open your files before trying to send them to ensure they exist!")
     print("Choose a number to select an option or press . to exit\n")
     while not G_ENDPROGRAM:
         try:
             print("1. View Available Peers in Network\n"  # No direct functionality needed
                   "2. View Available Files in Network\n"  # From 2. The user can select and download this file
-                  "3. Refresh PeerList\n"
+                  "3. Download Available File\n"
+                  "4. Refresh PeerList"
                   "Press . to exit")
             userOption = input()
             print()
@@ -125,13 +132,16 @@ def runPeer():
 
             userOption = int(userOption)
             # This value (3) will change as options get implemented
-            if 1 <= userOption <= 3:
+            if 1 <= userOption <= 4:
                 match userOption:
                     case 1:
                         hf.displayAvailablePeers()
                     case 2:
                         hf.displayAvailableFiles()
                     case 3:
+                        hf.handleDownloadFileRequest((G_MY_IP, G_MY_PORT),
+                                                     (g_serverIp, g_serverPort))
+                    case 4:
                         pass
                     case _:
                         raise ValueError("runPeer match statement: Something seriously went wrong to get here")
@@ -185,8 +195,7 @@ def runServer():
             threads.append(thread)
             thread.start()
             # Create method to send in a thread: No clue what this means future me
-            # Adding break statement just to debug runPeer and ensure it runs continuously
-            break
+            # Remember you put a break here earlier which meant no continuous listening
 
         for thread in threads:
             thread.join()
@@ -198,6 +207,9 @@ def initialConnect():
     and the global file list
     :return:
     """
+    global g_serverIp
+    global g_serverPort
+
     hf.waitForSecondConnection()
 
     # Create Peer class for user
@@ -209,30 +221,26 @@ def initialConnect():
     # !!!! Add a while loop to keep asking for ip and port if error occurs
     with selfPeer.createTCPSocket() as peer_socket:
 
-        #Uncomment when done debugging
-        # When locally testing, '127.0.0.1' or '0.0.0.0' should be used
-
         connectionSuccess: bool = False
 
         while not connectionSuccess:
-            serverIP: str
-            serverPort: int
-            serverIP, serverPort = hf.getServerAddress()
+            g_serverIp, g_serverPort = hf.getServerAddress()
+            print(f"-------||||{g_serverIp},{g_serverIp}")
 
             try:
                 # Timeout of 15 seconds
                 peer_socket.settimeout(15)
-                peer_socket.connect((serverIP, serverPort))
+                peer_socket.connect((g_serverIp, g_serverPort))
 
                 # Ask to connect to server and Receive message from server confirming connection
-                serverResponse: str = clientSendRequest(peer_socket, CRequest.ConnectRequest)
+                serverResponse: str = hf.clientSendRequest(peer_socket, CRequest.ConnectRequest)
 
                 # For future error implementation
                 if serverResponse != SResponse.Connected.name:
                     raise Exception("Something went wrong")
 
                 # Sends a second request asking to add this user into the peer network
-                serverResponse = clientSendRequest(peer_socket, CRequest.AddMe)
+                serverResponse = hf.clientSendRequest(peer_socket, CRequest.AddMe)
 
                 if serverResponse != SResponse.SendYourInfo.name:
                     raise Exception("Something went wrong")
@@ -252,7 +260,7 @@ def initialConnect():
                 # Yeah I know bad name deal with it or change all uses of it
                 Classes.G_peerList = [Classes.peerList_from_dict(item) for item in json.loads(serverResponse)]
 
-                serverResponse = clientSendRequest(peer_socket, CRequest.SendMyFiles)
+                serverResponse = hf.clientSendRequest(peer_socket, CRequest.SendMyFiles)
 
                 if serverResponse != SResponse.SendYourInfo.name:
                     raise Exception("Something went wrong")
@@ -264,19 +272,6 @@ def initialConnect():
 
             except (TimeoutError, InterruptedError, ConnectionRefusedError) as err:
                 print("Connection did not go through. Check the Client IP and Port")
-
-
-
-def clientSendRequest(peer_socket: socket, cRequest: CRequest | int) -> str:
-    """
-    Sends a request to a server
-    :param peer_socket:
-    :param cRequest:
-    :return: String representing Server response
-    """
-    sendStr: cRequest = cRequest.name
-    peer_socket.send(sendStr.encode())
-    return peer_socket.recv(Classes.G_BUFFER).decode()
 
 
 def get_user_input(input_queue):

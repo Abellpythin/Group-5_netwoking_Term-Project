@@ -2,16 +2,17 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 
+import os
 import json
 import socket
 import time
 import threading
 from pathlib import Path
-import HelperFunctions
+
 
 
 # Will it contain names? Just addresses?
-G_BUFFER: int = 2500000  # 2.5 mB
+G_BUFFER: int = 4096  # Bytes
 
 # ------------------------------------------------------------------------------------------------------------
 # Ensure that any modifications to these list are used with Lock
@@ -37,16 +38,28 @@ class CRequest(Enum):
 class SResponse(Enum):
     """
     Enumeration that contains strings that the client can send to the client
-    Please keep the names simple
     """
     Connected = 0  # Handles standard connection
     SendYourInfo = 1  # Response when client wants to send info (peerlist, files, etc.)
+    SendWantedFileName = 2  # Response when client wants to download file
 
+def list_files_in_directory(directory_path) -> list[str]:
+    """
+    Returns list of file names
+    Ex: ["CoolCat.jpeg", "CoolerDog.png"]
+    :param directory_path:
+    :return:
+    """
+    try:
+        files = [f for f in os.listdir(directory_path) if os.path.isfile(os.path.join(directory_path, f))]
+        return files
+    except FileNotFoundError:
+        print("Fail")
 
 def peerList_from_dict(peerAsDict):
     """
     Unpacks Json serialization of PeerList (not to be mistaken with G_PeerList)
-    :param objectAsDict:
+    :param peerAsDict:
     :return:
     """
     return PeerList(**peerAsDict)
@@ -62,7 +75,7 @@ class Peer:
         1. The peer socket is created
         2. The peer socket is currently in a tcp connection
     """
-    def __init__(self, address=('127.0.0.1', 5001), username: str=None, files=None, online: bool=True):
+    def __init__(self, address: tuple[str, int]=('127.0.0.1', 5001), username:str=None, files=None, online: bool=True):
         if files is None:
             files = []
         self.address: tuple[str, int] = address
@@ -82,11 +95,13 @@ class Peer:
         :return:
         """
 
-        # The type of currenDirectory changes depending on what os software is being used
+        # The type of currentDirectory changes depending on what os software is being used
         # Ex: pathlib.WindowsPath, pathlib.PosixPath, etc...
-        currentDirectory = Path.cwd()
-        parent_of_parent_directory = currentDirectory.parent / "Files"
-        fileNames = HelperFunctions.list_files_in_directory(parent_of_parent_directory)
+        currentDirectory: Path = Path.cwd()
+        parent_of_parent_directory: Path = currentDirectory.parent / "Files"
+        fileNames: list[str] = list_files_in_directory(parent_of_parent_directory)
+
+        print(f"\n\n\n{fileNames}\n\n\n")
 
         # File names cannot be duplicates so need to set path
         # Just find file name in Files directory
@@ -180,40 +195,42 @@ class Server:
         endTime: float = time.time()
         length: float = endTime - startTime
 
-        while (length < 5) and (requestsHandled):
-            # Reset everytime a successful connection occurs
-            startTime = time.time()
+        #!!!!! Double check and rememeber that server "conn" sockets need to CLOSE
+        with clientSocket:
+            while (length < 5) and (requestsHandled):
+                # Reset everytime a successful connection occurs
+                startTime = time.time()
 
-            # Matching string with string
-            match clientRequest:
-                case CRequest.ConnectRequest.name:
-                    requestsHandled = self.confirmConnection(clientSocket)
+                # Matching string with string
+                match clientRequest:
+                    case CRequest.ConnectRequest.name:
+                        requestsHandled = self.confirmConnection(clientSocket)
 
-                case CRequest.AddMe.name:
-                    requestsHandled = self.initialConnectionHandler(clientSocket)
+                    case CRequest.AddMe.name:
+                        requestsHandled = self.initialConnectionHandler(clientSocket)
 
-                case CRequest.PeerList.name:
-                    requestsHandled = self.sendPeerList(clientSocket)
+                    case CRequest.PeerList.name:
+                        requestsHandled = self.sendPeerList(clientSocket)
 
-                case CRequest.RequestFile.name:
-                    requestsHandled = self.sendRequestedFile(clientSocket)
+                    case CRequest.RequestFile.name:
+                        requestsHandled = self.sendRequestedFile(clientSocket)
 
-                case CRequest.SendMyFiles.name:
-                    requestsHandled = self.receiveRequestedFiles(clientSocket)
+                    case CRequest.SendMyFiles.name:
+                        requestsHandled = self.receiveRequestedFiles(clientSocket)
 
-                case _:
-                    requestsHandled = False
+                    case _:
+                        requestsHandled = False
 
-            # This will optionally timeout after 60 seconds
-            try:
-                clientRequest: str = clientSocket.recv(G_BUFFER).decode()
-            except TimeoutError as e:
-                # If we timeout then good, the while loop will simply end
-                # The socket timeout is equivalent to the function timer so no worries
-                continue
+                # This will optionally timeout after 60 seconds
+                try:
+                    clientRequest: str = clientSocket.recv(G_BUFFER).decode()
+                except TimeoutError as e:
+                    # If we timeout then good, the while loop will simply end
+                    # The socket timeout is equivalent to the function timer so no worries
+                    continue
 
-            endTime = time.time()
-            length = endTime - startTime
+                endTime = time.time()
+                length = endTime - startTime
 
         return requestsHandled
 
@@ -265,8 +282,7 @@ class Server:
         except OSError as err:
             success = False
             print(err)
-        finally:
-            return success
+        return True
 
     #Todo: This method
     def sendRequestedFile(self, clientSocket: socket):
@@ -278,8 +294,37 @@ class Server:
         :return: bool
         """
 
-        # giToDo: To be implemented
-        return
+        clientResponse: str = self.serverSendResponse(clientSocket, SResponse.SendWantedFileName)
+
+        wantedFile: File = file_from_dict(json.loads(clientResponse))
+        print(f"Client sent File to Server: {wantedFile}\n")
+
+        currentDirectory: Path = Path.cwd()
+        parent_of_parent_directory: Path = currentDirectory.parent / "Files/"
+        fileNames: list[str] = list_files_in_directory(parent_of_parent_directory)
+
+
+        print(f"WantedFile: {wantedFile.fileName}")
+
+        if wantedFile.fileName in fileNames:
+            filePath: Path = parent_of_parent_directory / wantedFile.fileName
+            fpString = str(filePath)
+            fileSize: int = os.stat(str(filePath)).st_size
+            print(filePath)
+
+            # Path does exist
+            print(os.path.exists(filePath))
+            clientSocket.send(f"{fileSize}".encode())
+            print(f"Sent file size {fileSize}\n")
+
+            with open(filePath, 'rb') as f:
+                while True:
+                    data = f.read(1024)
+                    if not data:
+                        break
+                    clientSocket.sendall(data)
+
+        return True
 
     def receiveRequestedFiles(self, clientSocket: socket) -> bool:
         """
@@ -310,6 +355,9 @@ class File:
 
     def __dict__(self):
         return {'fileName': self.fileName, 'userName': self.userName, 'addr': self.addr}
+
+    def __eq__(self, other: File):
+        return(self.fileName, self.userName, self.addr) == (other.fileName, other.userName, other.addr)
 
 
 class PeerList:

@@ -22,8 +22,18 @@ python version 3.12
 > 4. Follow the on-screen instructions
 
 # For A-lee-a when you do documentation
-> In case I forget, I'll list the major processes here.
-> 
+> In case I forget, I'll list the major processes here and try to break
+> down everything as simple as possible so presenting is easy. There is 
+> no particular order of any of these, it's just stuff that should be 
+> covered in slides or diagrams
+> - (Clarification) Any peer currently in the P2P network ALWAYS has
+> its server on (runServer). The client side only connects to a server
+> when a user makes an explicit request for server info (file downloads,
+> peer list requests, synchronization, etc...)
+> - At least 2 users need to be online in order for the P2P network to 
+> function. The first user needs to start their server THEN WAIT for
+> the second client to connect their server. Only then should the first
+> client attempt to connect to the second client
 
 ### Computer Networking Term Project 
 ![img.png](img.png)

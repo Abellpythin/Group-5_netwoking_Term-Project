@@ -1,11 +1,30 @@
 import os
+import socket
+import json
+import time
+from pathlib import Path
 
 import Classes
+from Classes import Peer
+
 
 """
 Someday it will be best to move all global functions into here.
 Today's that day
 """
+
+
+def clientSendRequest(peer_socket: socket, cRequest: Classes.CRequest | int) -> str:
+    """
+    Sends a request to a server
+    :param peer_socket:
+    :param cRequest:
+    :return: String representing Server response
+    """
+    sendStr: cRequest = cRequest.name
+    peer_socket.send(sendStr.encode())
+    return peer_socket.recv(Classes.G_BUFFER).decode()
+
 
 
 def list_files_in_directory(directory_path) -> list[str]:
@@ -88,7 +107,7 @@ def getServerAddress() -> tuple[str, int]:
     Gets the server address from user input
     :return: (serverIp,serverPort) a tuple of the server's address
     """
-    serverIp: str
+    serverIp: str = ''
     while True:
         try:
             serverIp = input("Enter the peer's IP address (e.g., 127.0.0.1): ")
@@ -108,10 +127,11 @@ def getServerAddress() -> tuple[str, int]:
         except ValueError as e:
             print(f"Invalid IP address: {e}\n")
 
-    serverPort: int
+    serverPort: int = 0
     while True:
         try:
             serverPort = int(input("Enter the Port Number of the peer (default is 12000): "))
+
             if (1024 <= serverPort <= 65535):
                 break
             else:
@@ -119,7 +139,7 @@ def getServerAddress() -> tuple[str, int]:
         except ValueError as e:
             print(f"Invalid Port number: {e}\n")
 
-    return (serverIp, serverPort)
+    return serverIp, serverPort
 
 
 def userPressesPeriod():
@@ -145,7 +165,7 @@ def displayAvailablePeers() -> None:
     return
 
 def displayAvailableFiles() -> None:
-    counter = 1
+    counter: int = 1
     for file in Classes.G_FileList:
         print(f"| Name: {file.fileName}\n"
               # Preferably we want files to have owners
@@ -156,3 +176,85 @@ def displayAvailableFiles() -> None:
     userPressesPeriod()
 
     return
+
+def handleDownloadFileRequest(clientAddress: tuple[str, int], serverAddress: tuple[str, int]):
+    """
+    TODO: Check to see if file is already downloaded
+    :param clientAddress:
+    :param serverAddress:
+    :return:
+    """
+    counter: int = 1
+    for file in Classes.G_FileList:
+        print(f"|{counter}. Name: {file.fileName}\n"
+              # Preferably we want files to have owners
+              f"|           Owner: {file.userName if file.userName else "No owner"}\n"
+              # Location should never be unknown. How else would you get the file
+              f"|           Address: {file.addr if file.addr else "Location Unknown"}\n")
+        counter += 1
+
+    userFileChoice: Classes.File
+    userChoice: str | int  # The number they picked
+    while True:
+        userChoice = input("Select the number of the file you want to download: ")
+        if userChoice.isdigit():
+            userChoice = int(userChoice) - 1
+            if 0 <= userChoice <= (len(Classes.G_FileList) - 1):
+                userFileChoice = Classes.G_FileList[userChoice]
+                break
+        print("Please enter a valid input.\n")
+
+    downloadFile(userFileChoice, clientAddress, serverAddress)
+    print("File successfully downloaded")
+
+
+def downloadFile(file: Classes.File, clientAddress: tuple[str, int], serverAddress: tuple[str, int]) -> None:
+    selfPeer: Peer = Peer(address=clientAddress)
+
+    with selfPeer.createTCPSocket() as peer_socket:
+        try:
+            print(f"{selfPeer}")
+            #https://github.com/Microsoft/WSL/issues/2523
+            peer_socket.connect(serverAddress)
+
+            peer_socket.settimeout(120)
+
+            serverResponse: str = clientSendRequest(peer_socket, Classes.CRequest.ConnectRequest)
+            if serverResponse != Classes.SResponse.Connected.name:
+                raise Exception("Something went wrong")
+
+            serverResponse = clientSendRequest(peer_socket, Classes.CRequest.RequestFile)
+
+            if serverResponse != Classes.SResponse.SendWantedFileName.name:
+                raise Exception("Something went wrong")
+
+            jsonUserPeer: str = json.dumps(file.__dict__())
+            peer_socket.send(jsonUserPeer.encode())
+
+            fileSize: int = int(peer_socket.recv(Classes.G_BUFFER).decode())
+            print(f"received file size{fileSize}\n")
+            if not fileSize:
+                raise FileNotFoundError("This is BAD!!!")
+
+            currentDirectory: Path = Path.cwd()
+            directoryPath: Path = currentDirectory.parent / "Files" / file.fileName
+
+            # Makes the directory if it doesn't exist
+            os.makedirs(os.path.dirname(directoryPath), exist_ok=True)
+
+            receivedSize: int = 0
+            with open(directoryPath, 'wb') as f:
+                while receivedSize < fileSize:
+                    data = peer_socket.recv(Classes.G_BUFFER)
+                    if not data:
+                        break
+                    f.write(data)
+                    print(receivedSize, len(data))
+                    receivedSize += len(data)
+                    print(data)
+
+            print("All done")
+
+        except (TimeoutError, InterruptedError, ConnectionRefusedError) as err:
+            print(err)
+            print("Connection did not go through. Check the Client IP and Port")
