@@ -269,10 +269,14 @@ def initialConnect():
 
                 peer_socket.send(fileJsonList.encode())
 
+                # --------------------------------------
+
                 # Receive file list
+                print("Main 275: About to send file list request")
                 fileObjectJsonList = hf.clientSendRequest(peer_socket, CRequest.RequestFileList)
 
                 Classes.G_FileList = [Classes.file_from_dict(file) for file in json.loads(fileObjectJsonList)]
+                print(f"Main 279: File list is {Classes.G_FileList}")
 
                 connectionSuccess = not connectionSuccess
 

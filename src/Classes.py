@@ -218,7 +218,7 @@ class Server:
                     case CRequest.SendMyFiles.name:
                         requestsHandled = self.receiveRequestedFiles(clientSocket)
 
-                    case CRequest.RequestFileList:
+                    case CRequest.RequestFileList.name:
                         requestsHandled = self.sendFileList(clientSocket)
 
                     case _:
@@ -288,7 +288,9 @@ class Server:
 
         json_data: str = json.dumps([file.__dict__() for file in G_FileList])
 
+        print("Classes line 291: Before sending file lise")
         clientSocket.send(json_data.encode())
+        print("Classes line 293: Just sent file list")
 
         return True
 
@@ -357,7 +359,8 @@ class Server:
 
         if clientResponse:
             G_FileList.extend([file_from_dict(item) for item in json.loads(clientResponse)])
-        print("Classes Line 358 Files are empty")
+        else:
+            print("Classes 363: File list client sent was empty")
 
         return True
 
