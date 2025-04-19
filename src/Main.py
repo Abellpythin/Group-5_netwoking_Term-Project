@@ -13,6 +13,7 @@ import time # for debugging
 import Classes  # Classes.G_peerList
 from Classes import Peer
 from Classes import Server
+from Classes import File
 from Classes import CRequest
 from Classes import SResponse
 from Classes import PeerList
@@ -269,7 +270,7 @@ def initialConnect():
                 peer_socket.send(fileJsonList.encode())
 
                 # Receive file list
-                fileObjectJsonList = peer_socket.recv(Classes.G_BUFFER).decode()
+                fileObjectJsonList = hf.clientSendRequest(peer_socket, CRequest.RequestFileList)
 
                 Classes.G_FileList = [Classes.file_from_dict(file) for file in json.loads(fileObjectJsonList)]
 

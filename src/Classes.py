@@ -270,8 +270,6 @@ class Server:
         for file in fileObjectList:
             G_FileList.append(file)
 
-        self.sendFileList(clientSocket)
-
         return True
 
     def sendPeerList(self, clientSocket: socket):
