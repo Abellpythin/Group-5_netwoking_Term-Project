@@ -117,7 +117,7 @@ def runPeer():
             print("1. View Available Peers in Network\n"  # No direct functionality needed
                   "2. View Available Files in Network\n"  # From 2. The user can select and download this file
                   "3. Download Available File\n"
-                  "4. Refresh PeerList"
+                  "4. Refresh PeerList\n"
                   "Press . to exit")
             userOption = input()
             print()
@@ -265,6 +265,12 @@ def initialConnect():
                 fileJsonList: str = json.dumps([file.__dict__() for file in selfPeer.files])
 
                 peer_socket.send(fileJsonList.encode())
+
+                # Receive file list
+                fileObjectJsonList = peer_socket.recv(Classes.G_BUFFER).decode
+
+                Classes.G_FileList = [Classes.file_from_dict(file) for file in json.loads(fileObjectJsonList)]
+
                 connectionSuccess = not connectionSuccess
 
             except (TimeoutError, InterruptedError, ConnectionRefusedError) as err:
