@@ -249,7 +249,9 @@ class Server:
 
         clientPeer: PeerList = peerList_from_dict(json.loads(clientResponse))
 
+        print("Acquiring Lock")
         with G_peerListLock:
+            print("Lock acquired")
             # Puts the peer in peerlist if not currently in peerlist
             G_peerList.append(clientPeer) if clientPeer not in G_peerList else None
 
