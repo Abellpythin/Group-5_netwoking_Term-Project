@@ -259,6 +259,7 @@ def initialConnect():
 
                 serverResponse = hf.clientSendRequest(peer_socket, CRequest.SendMyFiles)
 
+                print(f"-----Server REspons: {serverResponse}")
                 if serverResponse != SResponse.SendYourInfo.name:
                     raise Exception("Something went wrong")
 

@@ -220,9 +220,6 @@ class Server:
                     case CRequest.SendMyFiles.name:
                         requestsHandled = self.receiveRequestedFiles(clientSocket)
 
-                    case CRequest.RequestFileList.name:
-                        requestsHandled = self.sendFileList()
-
                     case _:
                         requestsHandled = False
 
@@ -264,8 +261,8 @@ class Server:
         self.sendPeerList(clientSocket)
 
         # Now create Peer to get list of File objects then send to client
-        fileObjectList: list[File] = self.fileObject_list()
-        self.sendFileList(clientSocket, fileObjectList)
+        # fileObjectList: list[File] = self.fileObject_list()
+        # self.sendFileList(clientSocket, fileObjectList)
 
         return True
 
@@ -352,7 +349,9 @@ class Server:
 
         clientResponse: str = self.serverSendResponse(clientSocket, SResponse.SendYourInfo)
 
-        G_FileList.extend([file_from_dict(item) for item in json.loads(clientResponse)])
+        if clientResponse:
+            G_FileList.extend([file_from_dict(item) for item in json.loads(clientResponse)])
+            print("Files are empty")
 
         # Comment these 3 lines out once project completed [debugging]
         print("Line 296 Classes: I have received files")
