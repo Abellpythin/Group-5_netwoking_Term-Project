@@ -30,9 +30,10 @@ class CRequest(Enum):
     # Ex: CRequest.PeerList.name |  to get string name of enum
     ConnectRequest = 0
     AddMe = 1
-    PeerList = 2
-    RequestFile = 3
+    PeerList = 2  # Request PeerList
+    RequestFile = 3  # To download
     SendMyFiles = 4  # Sends list of File names (Not the contents itself)
+    RequestFileList = 5  # Request File list
 
 
 class SResponse(Enum):
@@ -55,6 +56,7 @@ def list_files_in_directory(directory_path) -> list[str]:
         return files
     except FileNotFoundError:
         print("Fail")
+
 
 def peerList_from_dict(peerAsDict):
     """
@@ -218,6 +220,9 @@ class Server:
                     case CRequest.SendMyFiles.name:
                         requestsHandled = self.receiveRequestedFiles(clientSocket)
 
+                    case CRequest.RequestFileList.name:
+                        requestsHandled = self.sendFileList()
+
                     case _:
                         requestsHandled = False
 
@@ -255,9 +260,12 @@ class Server:
 
             G_peerList.append(thisServerInfo) if thisServerInfo not in G_peerList else None
 
-
-        #Send back this server's G_peerList
+        # Send back this server's G_peerList
         self.sendPeerList(clientSocket)
+
+        # Now create Peer to get list of File objects then send to client
+        fileObjectList: list[File] = self.fileObject_list()
+        self.sendFileList(clientSocket, fileObjectList)
 
         return True
 
@@ -265,11 +273,6 @@ class Server:
 
         # Adding this to show on local clients that it will send the whole list
         # Remember, on local clients both the server and client have the same username, ip, and port
-        #REMOVE LATER DEBUGGING
-        # global G_peerListLock
-        # with G_peerListLock:
-        #     G_peerList.append(PeerList(('Debugging', 12000), "Let's Go"))
-        # ------------------------------------------------------------------------------------------------------------
 
         json_data: str = json.dumps([peer.__dict__() for peer in G_peerList])
 
@@ -277,6 +280,15 @@ class Server:
         clientSocket.send(json_data.encode())
 
         return True
+
+    def sendFileList(self, clientSocket: socket, fileObjectList: list[File]):
+
+        json_data: str = json.dumps([file.__dict__() for file in fileObjectList])
+
+        clientSocket.send(json_data.encode())
+
+        return True
+
 
     def confirmConnection(self, clientSocket: socket) -> bool:
         success: bool = True
@@ -349,6 +361,19 @@ class Server:
             print(file.fileName)
 
         return True
+
+    def fileObject_list(self) -> list[File]:
+        currentDirectory: Path = Path.cwd()
+        filePath: Path = currentDirectory.parent / "Files"
+        fileObjectList: list[File] = []
+
+        if os.path.exists(filePath):
+            files: list[str] = list_files_in_directory(filePath)
+
+            for fileName in files:
+                fileObjectList.append(File(fileName, self.userName, self.address))
+
+        return fileObjectList
 
 
 
