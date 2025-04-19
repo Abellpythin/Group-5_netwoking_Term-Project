@@ -103,8 +103,6 @@ class Peer:
         parent_of_parent_directory: Path = currentDirectory.parent / "Files"
         fileNames: list[str] = list_files_in_directory(parent_of_parent_directory)
 
-        print(f"\n\n\n{fileNames}\n\n\n")
-
         # File names cannot be duplicates so need to set path
         # Just find file name in Files directory
         for name in fileNames:
@@ -220,6 +218,9 @@ class Server:
                     case CRequest.SendMyFiles.name:
                         requestsHandled = self.receiveRequestedFiles(clientSocket)
 
+                    case CRequest.RequestFileList:
+                        requestsHandled = self.sendFileList(clientSocket)
+
                     case _:
                         requestsHandled = False
 
@@ -249,9 +250,9 @@ class Server:
 
         clientPeer: PeerList = peerList_from_dict(json.loads(clientResponse))
 
-        print("Acquiring Lock")
+        print("Classes 252: Acquiring Lock")
         with G_peerListLock:
-            print("Lock acquired")
+            print("Classes 254: Lock acquired")
             # Puts the peer in peerlist if not currently in peerlist
             G_peerList.append(clientPeer) if clientPeer not in G_peerList else None
 
@@ -263,8 +264,13 @@ class Server:
         self.sendPeerList(clientSocket)
 
         # Now create Peer to get list of File objects then send to client
-        # fileObjectList: list[File] = self.fileObject_list()
-        # self.sendFileList(clientSocket, fileObjectList)
+        #If it doesn't work it's this line
+        fileObjectList: list[File] = self.fileObject_list()
+
+        for file in fileObjectList:
+            G_FileList.append(file)
+
+        self.sendFileList(clientSocket)
 
         return True
 
@@ -280,9 +286,9 @@ class Server:
 
         return True
 
-    def sendFileList(self, clientSocket: socket, fileObjectList: list[File]):
+    def sendFileList(self, clientSocket: socket):
 
-        json_data: str = json.dumps([file.__dict__() for file in fileObjectList])
+        json_data: str = json.dumps([file.__dict__() for file in G_FileList])
 
         clientSocket.send(json_data.encode())
 
@@ -353,13 +359,7 @@ class Server:
 
         if clientResponse:
             G_FileList.extend([file_from_dict(item) for item in json.loads(clientResponse)])
-            print("Files are empty")
-
-        # Comment these 3 lines out once project completed [debugging]
-        print("Line 296 Classes: I have received files")
-
-        for file in G_FileList:
-            print(file.fileName)
+        print("Classes Line 358 Files are empty")
 
         return True
 

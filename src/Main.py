@@ -261,7 +261,6 @@ def initialConnect():
 
                 serverResponse = hf.clientSendRequest(peer_socket, CRequest.SendMyFiles)
 
-                print(f"-----Server REspons: {serverResponse}")
                 if serverResponse != SResponse.SendYourInfo.name:
                     raise Exception("Something went wrong")
 
@@ -270,7 +269,7 @@ def initialConnect():
                 peer_socket.send(fileJsonList.encode())
 
                 # Receive file list
-                fileObjectJsonList = peer_socket.recv(Classes.G_BUFFER).decode
+                fileObjectJsonList = peer_socket.recv(Classes.G_BUFFER).decode()
 
                 Classes.G_FileList = [Classes.file_from_dict(file) for file in json.loads(fileObjectJsonList)]
 
