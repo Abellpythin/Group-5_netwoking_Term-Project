@@ -209,6 +209,7 @@ def handleDownloadFileRequest(clientAddress: tuple[str, int], serverAddress: tup
 
     downloadFile(userFileChoice, clientAddress, serverAddress)
     print("File successfully downloaded")
+    print("Stop the program to see your download")
 
 
 def downloadFile(file: Classes.File, clientAddress: tuple[str, int], serverAddress: tuple[str, int]) -> None:

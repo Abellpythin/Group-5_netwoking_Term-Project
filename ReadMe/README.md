@@ -2,6 +2,11 @@
 
 python version 3.12
 
+# Important to know 
+> When downloading a file, it won't show in the until AFTER you stop
+> the IDE until after you stop program. You should see it in the files
+> though.
+
 # If using windows, everything will give you problems
 > Here's a checklist to ensure your windows machine can use our p2p
 > network
