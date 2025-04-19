@@ -32,7 +32,7 @@ def list_files_in_directory(directory_path) -> list[str]:
         files = [f for f in os.listdir(directory_path) if os.path.isfile(os.path.join(directory_path, f))]
         return files
     except FileNotFoundError:
-        print("Fail")
+        print("list_files_in_directory SOMETHING UNHEARD OF HAPPENED!!!")
 
 
 def setUserName() -> str:

@@ -167,6 +167,7 @@ def runServer():
     """
     global G_ENDPROGRAM
     myServer: Server = Server((G_MY_IP, G_MY_PORT))
+    myServer.userName = G_MY_USERNAME  # Needed to send this server's info to peer
 
     with myServer.createTCPSocket() as listening_socket:
         # Continuously listens so need to put in while loop

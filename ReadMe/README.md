@@ -20,6 +20,8 @@ python version 3.12
 > 3. Any files you want available for download, put in the Files folder 
 >of your IDE.
 > 4. Follow the on-screen instructions
+> 5. If you encounter connection problems try using terminal to ping to
+> other computer to ensure it's an application problem.
 
 # For A-lee-a when you do documentation
 > In case I forget, I'll list the major processes here and try to break
@@ -34,6 +36,15 @@ python version 3.12
 > function. The first user needs to start their server THEN WAIT for
 > the second client to connect their server. Only then should the first
 > client attempt to connect to the second client
+
+## Notes for Brejon 
+> When the first client starts the P2P network, they are required to only
+> run the server initially. This means that they have no files and no
+> peers in their peerlist. Now when the second client enters and connects
+> to the first client, they receive a list of peers containing nothing.
+> Fix this by (from the perspective of the first peer) initializing a new 
+> PeerList object and adding it to the peer listif it is not currently in 
+> the PeerList.
 
 ### Computer Networking Term Project 
 ![img.png](img.png)

@@ -144,13 +144,13 @@ class Peer:
         return serverResponse == SResponse.Connected.name
 
 
-
-
 class Server:
     # Default should be set to macbook's actual ip later
     def __init__(self, address: tuple[str, int]= ('127.0.0.1', 5001)):
         self.address: tuple[str, int] = address
         self.socket: socket.socket | None = None
+
+        self.userName: str | None = None  # Used for initial connect
 
     def createTCPSocket(self):
         """
@@ -250,6 +250,11 @@ class Server:
         with G_peerListLock:
             # Puts the peer in peerlist if not currently in peerlist
             G_peerList.append(clientPeer) if clientPeer not in G_peerList else None
+
+            thisServerInfo: PeerList = PeerList(self.address, self.userName)
+
+            G_peerList.append(thisServerInfo) if thisServerInfo not in G_peerList else None
+
 
         #Send back this server's G_peerList
         self.sendPeerList(clientSocket)
