@@ -1,2 +1,0 @@
-# Literally the devil right here
-src/__pycache__
