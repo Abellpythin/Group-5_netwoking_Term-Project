@@ -205,7 +205,6 @@ def handleDownloadFileRequest(clientAddress: tuple[str, int], serverAddress: tup
         counter += 1
     print()
 
-
     userFileChoice: Classes.File
     userChoice: str | int  # The number they picked
     while True:

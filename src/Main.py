@@ -229,8 +229,6 @@ def initialConnect():
                 # Receives an updated list of peer (including this user)
                 serverResponse = peer_socket.recv(Classes.G_BUFFER).decode()
 
-                print(f"PeerList{serverResponse}")
-
                 # Turns the json LIST of peerList(the class) into separate peerList(object individually)
                 # objects to be added to G_peerList(global peerlist that holds all the peers)
                 # Yeah I know bad name deal with it or change all uses of it
@@ -246,11 +244,9 @@ def initialConnect():
                 peer_socket.send(fileJsonList.encode())
 
                 # Receive file list
-                print("Main 275: About to send file list request")
                 fileObjectJsonList = hf.clientSendRequest(peer_socket, CRequest.RequestFileList)
 
                 Classes.G_FileList = [Classes.file_from_dict(file) for file in json.loads(fileObjectJsonList)]
-                print(f"Main 279: File list is {Classes.G_FileList}")
 
                 connectionSuccess = not connectionSuccess
 

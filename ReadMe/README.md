@@ -49,13 +49,18 @@ python version 3.12
 
 
 ## Notes for Brejon 
-> When the first client starts the P2P network, they are required to only
-> run the server initially. This means that they have no files and no
-> peers in their peerlist. Now when the second client enters and connects
-> to the first client, they receive a list of peers containing nothing.
-> Fix this by (from the perspective of the first peer) initializing a new 
-> PeerList object and adding it to the peer listif it is not currently in 
-> the PeerList.
+> # File Synchronization
+> - Only txt files will be available for file sync
+> - There will be a separate thread that runs a method that occasionally checks
+> for changes made to any of the files. This in turn means that we will need to
+> keep past copies of each file to compare.
+> - When a change is made it will be sent to every peer in O(n) time
+> 
+> When a client saves a file, a list of every peer in the network will be produced.
+> The client will randomly (to save time it'll just send it to the first in the list)
+> select a client to send this save to. The peer who receives this update also 
+> receives the list minus the peer who sent them the update. This will continue until
+> the list is empty and the last peer receives the update
 
 ### Computer Networking Term Project 
 ![img.png](img.png)
