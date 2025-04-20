@@ -1,17 +1,10 @@
 import os
 import socket
 import json
-import time
 from pathlib import Path
 
 import Classes
 from Classes import Peer
-
-
-"""
-Someday it will be best to move all global functions into here.
-Today's that day
-"""
 
 
 def clientSendRequest(peer_socket: socket, cRequest: Classes.CRequest | int) -> str:
@@ -26,8 +19,12 @@ def clientSendRequest(peer_socket: socket, cRequest: Classes.CRequest | int) -> 
     return peer_socket.recv(Classes.G_BUFFER).decode()
 
 
-
 def list_files_in_directory(directory_path) -> list[str]:
+    """
+    Lists file names in "Files" directory
+    :param directory_path:
+    :return:
+    """
     try:
         files = [f for f in os.listdir(directory_path) if os.path.isfile(os.path.join(directory_path, f))]
         return files
@@ -58,9 +55,10 @@ def setUserName() -> str:
 
     return G_MY_USERNAME
 
+
 def setUserIP() -> str:
     """
-
+    Asks the for the user's IP address then returns it
     :return:
     """
     G_MY_IP: str
@@ -85,6 +83,7 @@ def setUserIP() -> str:
 
     return G_MY_IP
 
+
 def waitForSecondConnection() -> None:
     """
     This will wait for the user to confirm there is a second user that is online
@@ -101,6 +100,7 @@ def waitForSecondConnection() -> None:
         else:
             print("Please press n\n")
     return
+
 
 def getServerAddress() -> tuple[str, int]:
     """
@@ -156,7 +156,12 @@ def userPressesPeriod():
         print()
     print()
 
+
 def displayAvailablePeers() -> None:
+    """
+    Prints available peers to screen for the user
+    :return:
+    """
     counter = 1
     for peer in Classes.G_peerList:
         print(f"{counter}. {peer}")
@@ -166,6 +171,10 @@ def displayAvailablePeers() -> None:
     return
 
 def displayAvailableFiles() -> None:
+    """
+    Displays the available files to download for the user
+    :return:
+    """
     counter: int = 1
     for file in Classes.G_FileList:
         print(f"| Name: {file.fileName}\n"
@@ -177,6 +186,7 @@ def displayAvailableFiles() -> None:
     userPressesPeriod()
 
     return
+
 
 def handleDownloadFileRequest(clientAddress: tuple[str, int], serverAddress: tuple[str, int]):
     """
@@ -200,6 +210,7 @@ def handleDownloadFileRequest(clientAddress: tuple[str, int], serverAddress: tup
     userChoice: str | int  # The number they picked
     while True:
         userChoice = input("Select the number of the file you want to download: ")
+        print()
         if userChoice.isdigit():
             userChoice = int(userChoice) - 1
             if 0 <= userChoice <= (len(Classes.G_FileList) - 1):
@@ -209,15 +220,21 @@ def handleDownloadFileRequest(clientAddress: tuple[str, int], serverAddress: tup
 
     downloadFile(userFileChoice, clientAddress, serverAddress)
     print("File successfully downloaded")
-    print("Stop the program to see your download")
+    print("Stop the program to see your download\n")
 
 
 def downloadFile(file: Classes.File, clientAddress: tuple[str, int], serverAddress: tuple[str, int]) -> None:
+    """
+    Thus methid
+    :param file: The file object that the user wants to download which contains who has it
+    :param clientAddress: The client's address to make a socket for
+    :param serverAddress: This is for knowing where to send the request to
+    :return:
+    """
     selfPeer: Peer = Peer(address=clientAddress)
 
     with selfPeer.createTCPSocket() as peer_socket:
         try:
-            print(f"{selfPeer}")
             #https://github.com/Microsoft/WSL/issues/2523
             peer_socket.connect(serverAddress)
 
@@ -257,7 +274,7 @@ def downloadFile(file: Classes.File, clientAddress: tuple[str, int], serverAddre
                     receivedSize += len(data)
                     print(data)
 
-            print("All done")
+            print("File successfully downloaded! You will see your download once you end the P2P session.")
 
         except (TimeoutError, InterruptedError, ConnectionRefusedError) as err:
             print(err)

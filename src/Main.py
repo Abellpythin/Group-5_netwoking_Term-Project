@@ -1,8 +1,3 @@
-# Send Everything universally through bits
-# Encoding is faster however images should not be encoded in utf-8
-# By sending everything through bits this process is avoided
-# Think about limiting how many files a user can download
-# Limit how many files can be requested from one server
 from __future__ import annotations
 import json
 import queue
@@ -13,7 +8,6 @@ import time # for debugging
 import Classes  # Classes.G_peerList
 from Classes import Peer
 from Classes import Server
-from Classes import File
 from Classes import CRequest
 from Classes import SResponse
 from Classes import PeerList
@@ -22,7 +16,6 @@ import HelperFunctions as hf
 
 #!!!!!! Use 127.0.0.1 for debugging NOT 0.0.0.0
 
-# from Classes import G_peerList | This does not work like c++
 
 # Use your systems local IP address (IPV4 when typing ipconfig pn windows, env0 on mac)
 
@@ -83,26 +76,18 @@ def main():
     serverThread.join()
     peerThread.join()
 
-    # try:
-    #     while G_ENDPROGRAM:
-    #         time.sleep(0.1)
-    # except KeyboardInterrupt:
-    #     print("Exiting...")
-
     print("Complete!")
 
 
 # This will be the only function besides main that interacts with the user
 def runPeer():
     """
-    Needs to be implemented. This will display the files to the user, show them lists of peers, allow them
-    to download files etc.
-    You have to interact with the user here. No need for a gui, just assume they know what they're doing
+    The runPeer method displays the program's available options to the user.
+    1. View Available Peers in Network
+    2. View Available Files in Network
+    3. Download Available Files
+    4. Refresh PeerList
     """
-
-    # todo: Request File from server
-    # todo: Disconnect from server
-    # todo: Add a back input method so when a user clicks something, they can go back
     global G_ENDPROGRAM
 
     #Debugging
@@ -132,7 +117,7 @@ def runPeer():
                 break
 
             userOption = int(userOption)
-            # This value (3) will change as options get implemented
+            # This value (4) will change as options get implemented
             if 1 <= userOption <= 4:
                 match userOption:
                     case 1:
@@ -157,8 +142,6 @@ def runPeer():
     return
 
 
-# "Server" in front a print statement indicates the Server sent it
-# Ex: "Server: Got your message bud"
 def runServer():
     """
     The server is run for the entire duration of the program.
@@ -171,18 +154,12 @@ def runServer():
     myServer.userName = G_MY_USERNAME  # Needed to send this server's info to peer
 
     with myServer.createTCPSocket() as listening_socket:
-        # Continuously listens so need to put in while loop
+        # Continuously listens so no need to put in while loop
         listening_socket.listen(G_MAX_CONNECTIONS)
         threads: list[threading.Thread] = []
 
         while not G_ENDPROGRAM:
-            """
-            # In theory, this while loop is ok. conn will send the socket to the thread
-            # then be assigned to a NEW socket. The previous socket will be handled by the
-            # clientRequest function
-            # 
             # Todo: What happens when user ends program while server listens?
-            """
             conn, addr = listening_socket.accept()  # Accepts 1 connection at a time
 
             # Optional settimeout so clients can't linger for too long
@@ -220,7 +197,6 @@ def initialConnect():
 
     userPeer: PeerList = PeerList((G_MY_IP, G_MY_PORT), G_MY_USERNAME)
 
-    # !!!! Add a while loop to keep asking for ip and port if error occurs
     with selfPeer.createTCPSocket() as peer_socket:
 
         connectionSuccess: bool = False
@@ -268,8 +244,6 @@ def initialConnect():
                 fileJsonList: str = json.dumps([file.__dict__() for file in selfPeer.files])
 
                 peer_socket.send(fileJsonList.encode())
-
-                # --------------------------------------
 
                 # Receive file list
                 print("Main 275: About to send file list request")

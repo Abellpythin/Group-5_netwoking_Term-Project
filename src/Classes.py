@@ -1,5 +1,4 @@
 from __future__ import annotations
-from datetime import datetime
 from enum import Enum
 
 import os
@@ -9,12 +8,8 @@ import time
 import threading
 from pathlib import Path
 
-
-
-# Will it contain names? Just addresses?
 G_BUFFER: int = 4096  # Bytes
 
-# ------------------------------------------------------------------------------------------------------------
 # Ensure that any modifications to these list are used with Lock
 G_peerList: list[PeerList] = []
 G_FileList: list[File] = []
@@ -38,7 +33,7 @@ class CRequest(Enum):
 
 class SResponse(Enum):
     """
-    Enumeration that contains strings that the client can send to the client
+    Enumeration that contains strings that the server can send to the client
     """
     Connected = 0  # Handles standard connection
     SendYourInfo = 1  # Response when client wants to send info (peerlist, files, etc.)
@@ -135,11 +130,6 @@ class Peer:
         with G_peerListLock:
             G_peerList = [peerList_from_dict(item) for item in json.loads(data)]
 
-    def fileRequest(self):
-        # Send in chunks? What's the format? How to turn it back to list?
-        # Start client side and come back to solve problems
-        return
-
     def validConnection(self, serverResponse: str) -> bool:
         return serverResponse == SResponse.Connected.name
 
@@ -172,12 +162,6 @@ class Server:
         server_socket.send(sendStr.encode())
         return server_socket.recv(G_BUFFER).decode()
 
-    """
-    Future self
-    Thread safety is always a concern. Lists [] are thread safe luckily but any modifications to custom 
-    data types could be worrisome. Keep them to a minimum if not none at all
-    """
-    # A client could request a file, peer list, etc. This is not exclusively for files
     def clientRequest(self, clientSocket: socket) -> bool:
         """
         This reads the client's request message and calls the proper method to handle it. It will remain
@@ -195,13 +179,14 @@ class Server:
         endTime: float = time.time()
         length: float = endTime - startTime
 
-        #!!!!! Double check and rememeber that server "conn" sockets need to CLOSE
         with clientSocket:
             while (length < 5) and (requestsHandled):
                 # Reset everytime a successful connection occurs
                 startTime = time.time()
 
-                # Matching string with string
+                """
+                Always remember to add .name at the end of each enumeration case
+                """
                 match clientRequest:
                     case CRequest.ConnectRequest.name:
                         requestsHandled = self.confirmConnection(clientSocket)
@@ -239,7 +224,7 @@ class Server:
 
     def initialConnectionHandler(self, clientSocket: socket) -> bool:
         """
-        This method
+        This method handles a new client connected to the P2P network for the first time
         :param clientSocket:
         :return:
         """
@@ -250,9 +235,7 @@ class Server:
 
         clientPeer: PeerList = peerList_from_dict(json.loads(clientResponse))
 
-        print("Classes 252: Acquiring Lock")
         with G_peerListLock:
-            print("Classes 254: Lock acquired")
             # Puts the peer in peerlist if not currently in peerlist
             G_peerList.append(clientPeer) if clientPeer not in G_peerList else None
 
@@ -264,7 +247,6 @@ class Server:
         self.sendPeerList(clientSocket)
 
         # Now create Peer to get list of File objects then send to client
-        #If it doesn't work it's this line
         fileObjectList: list[File] = self.fileObject_list()
 
         for file in fileObjectList:
@@ -273,13 +255,8 @@ class Server:
         return True
 
     def sendPeerList(self, clientSocket: socket):
-
-        # Adding this to show on local clients that it will send the whole list
-        # Remember, on local clients both the server and client have the same username, ip, and port
-
         json_data: str = json.dumps([peer.__dict__() for peer in G_peerList])
 
-        # Change to send in chunks perhaps
         clientSocket.send(json_data.encode())
 
         return True
@@ -288,12 +265,8 @@ class Server:
 
         json_data: str = json.dumps([file.__dict__() for file in G_FileList])
 
-        print("Classes line 291: Before sending file lise")
         clientSocket.send(json_data.encode())
-        print("Classes line 293: Just sent file list")
-
         return True
-
 
     def confirmConnection(self, clientSocket: socket) -> bool:
         success: bool = True
@@ -306,7 +279,6 @@ class Server:
             print(err)
         return True
 
-    #Todo: This method
     def sendRequestedFile(self, clientSocket: socket):
         """
         This will send the requested file
@@ -319,14 +291,14 @@ class Server:
         clientResponse: str = self.serverSendResponse(clientSocket, SResponse.SendWantedFileName)
 
         wantedFile: File = file_from_dict(json.loads(clientResponse))
-        print(f"Client sent File to Server: {wantedFile}\n")
+        #print(f"Client sent File to Server: {wantedFile}\n")
 
         currentDirectory: Path = Path.cwd()
         parent_of_parent_directory: Path = currentDirectory.parent / "Files/"
         fileNames: list[str] = list_files_in_directory(parent_of_parent_directory)
 
 
-        print(f"WantedFile: {wantedFile.fileName}")
+        #print(f"WantedFile: {wantedFile.fileName}")
 
         if wantedFile.fileName in fileNames:
             filePath: Path = parent_of_parent_directory / wantedFile.fileName
@@ -365,6 +337,10 @@ class Server:
         return True
 
     def fileObject_list(self) -> list[File]:
+        """
+        This return a list of file objects (not just file names)
+        :return: fileObjectList
+        """
         currentDirectory: Path = Path.cwd()
         filePath: Path = currentDirectory.parent / "Files"
         fileObjectList: list[File] = []
@@ -380,6 +356,12 @@ class Server:
 
 
 class File:
+    """
+    This is an object that contains:
+    1. The name of the file
+    2. What user owns the file
+    3. The address of the file
+    """
     def __init__(self, fileName: str, userName, addr=None):
         self.fileName: str = fileName
         self.userName: str = userName
@@ -394,8 +376,8 @@ class File:
 
 class PeerList:
     """
-    The peer list will be used to not only connect to peers but to display what users
-    are online
+    This class is used to send peer information to the clients. Peer is used locally, PeerList is used
+    to communicate between servers an clients.
     """
     def __init__(self, addr: tuple[str, int], username: str):
         self.addr: tuple[str, int] | None = addr
@@ -410,8 +392,6 @@ class PeerList:
 
     def __eq__(self, other: PeerList):
         return (self.addr, self.username) == (other.addr, other.username)
-
-
 
 # For future security it MIGHT be useful to make methods that check the ip address
 # Files and peer list should be separate. They can always be combined but separating is much harder

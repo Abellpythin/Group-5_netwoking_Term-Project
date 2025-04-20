@@ -41,6 +41,12 @@ python version 3.12
 > function. The first user needs to start their server THEN WAIT for
 > the second client to connect their server. Only then should the first
 > client attempt to connect to the second client
+> - Every file is sent through bits
+> - The user has these available options
+> - 1. View Available Peers in Network
+>   2. View Available Files in Network
+>   3. Download Available Files
+
 
 ## Notes for Brejon 
 > When the first client starts the P2P network, they are required to only
