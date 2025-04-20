@@ -224,7 +224,8 @@ def handleDownloadFileRequest(clientAddress: tuple[str, int], serverAddress: tup
 
 def downloadFile(file: Classes.File, clientAddress: tuple[str, int], serverAddress: tuple[str, int]) -> None:
     """
-    Thus methid
+    Ths method is responsible for sending and receiving the requested file for the user.
+
     :param file: The file object that the user wants to download which contains who has it
     :param clientAddress: The client's address to make a socket for
     :param serverAddress: This is for knowing where to send the request to
@@ -278,3 +279,4 @@ def downloadFile(file: Classes.File, clientAddress: tuple[str, int], serverAddre
         except (TimeoutError, InterruptedError, ConnectionRefusedError) as err:
             print(err)
             print("Connection did not go through. Check the Client IP and Port")
+
