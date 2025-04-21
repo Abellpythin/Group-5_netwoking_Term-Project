@@ -266,12 +266,12 @@ def initialConnect():
 
                 # Create and send json string
                 print("Main 268 should be Files for sync: ", Classes.g_FilesForSync)
-                # jsonFilesForSync: str = json.dumps([fs.__dict__() for fs in Classes.g_FilesForSync])
+                jsonFilesForSync: str = json.dumps([fs.__dict__() for fs in Classes.g_FilesForSync])
 
-                jsonFilesForSync: str = ""
-                for fileSync in Classes.g_FilesForSync:
-                    print(fileSync)
-                    jsonFilesForSync = json.dumps(fileSync.__dict__())
+                # jsonFilesForSync: str = ""
+                # for fileSync in Classes.g_FilesForSync:
+                #     print(fileSync)
+                #     jsonFilesForSync = json.dumps(fileSync.__dict__())
 
                 peer_socket.send(jsonFilesForSync.encode())
 

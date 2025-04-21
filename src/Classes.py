@@ -69,8 +69,11 @@ def peerList_from_dict(peerAsDict):
 def file_from_dict(fileAsDict):
     return File(**fileAsDict)
 
+
 def sync_file_from_dict(syncFileAsDict):
-    return FileForSync(**syncFileAsDict)
+    usersSubbed = [peerList_from_dict(u) for u in syncFileAsDict['usersSubbed']]
+    return FileForSync(fileName=syncFileAsDict['fileName'], usersSubbed=usersSubbed)
+
 
 class Peer:
     """
