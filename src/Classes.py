@@ -367,7 +367,11 @@ class Server:
         clientResponse: str = self.serverSendResponse(clientSocket, SResponse.SendYourInfo)
 
         if clientResponse:
-            g_FilesForSync.extend([sync_file_from_dict(item) for item in json.loads(clientResponse)])
+            # g_FilesForSync.extend([sync_file_from_dict(item) for item in json.loads(clientResponse)])
+
+            for fileSyncObj in json.loads(clientResponse):
+                if fileSyncObj not in g_FilesForSync:
+                    g_FilesForSync.append(fileSyncObj)
 
             print("Should be FilesForSync object: ", g_FilesForSync)
             jsonFilesForSync: str = json.dumps([fs.__dict__() for fs in g_FilesForSync])
@@ -423,6 +427,9 @@ class FileForSync:
 
     def __dict__(self):
         return {'fileName': self.fileName, 'usersSubbed': [us.__dict__() for us in self.usersSubbed]}
+
+    def __eq__(self, other: FileForSync):
+        return (self.fileName, self.usersSubbed) == (other.fileName, other.usersSubbed)
 
 
 class PeerList:
