@@ -252,7 +252,7 @@ def downloadSubscribedFile(syncFile: FileForSync, userAsPeerList: PeerList) -> N
                 raise Exception("Subscribing to file failed in downloadSubscribedFile() HelperFunctions.py")
 
             jsonSyncFile: str = json.dumps(syncFile.__dict__())
-            peer_socket.send(jsonSyncFile.encode)
+            peer_socket.send(jsonSyncFile.encode())
 
             fileSize: int = int(peer_socket.recv(Classes.G_BUFFER).decode())
             print(f"Received Sync File size{fileSize}\n")
