@@ -242,11 +242,13 @@ def downloadSubscribedFile(syncFile: FileForSync, userAsPeerList: PeerList) -> N
 
     with selfPeer.createTCPSocket() as peer_socket:
         try:
-            peer_socket.connect(syncFile.usersSubbed[0].addr)
-            peer_socket.timeout(120)
+            print(syncFile.usersSubbed[0].addr)
+            # This is a list most likely due to json conversion
+            peer_socket.connect(tuple(syncFile.usersSubbed[0].addr))
+            peer_socket.settimeout(120)
 
             serverResponse: str = clientSendRequest(peer_socket, Classes.CRequest.SubscribeToFile)
-            if serverResponse != Classes.SResponse.SendYourInfo.SendWantedFileName:
+            if serverResponse != Classes.SResponse.SendWantedFileName.name:
                 raise Exception("Subscribing to file failed in downloadSubscribedFile() HelperFunctions.py")
 
             jsonSyncFile: str = json.dumps(syncFile.__dict__())
