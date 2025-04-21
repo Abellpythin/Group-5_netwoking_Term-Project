@@ -68,6 +68,8 @@ def peerList_from_dict(peerAsDict):
 def file_from_dict(fileAsDict):
     return File(**fileAsDict)
 
+def sync_file_from_dict(syncFileAsDict):
+    return FileForSync(**syncFileAsDict)
 
 class Peer:
     """
@@ -352,7 +354,7 @@ class Server:
         clientResponse: str = self.serverSendResponse(clientSocket, SResponse.SendYourInfo)
 
         if clientResponse:
-            g_FilesForSync.extend([file_from_dict(item) for item in json.loads(clientResponse)])
+            g_FilesForSync.extend([sync_file_from_dict(item) for item in json.loads(clientResponse)])
             print("Should be FilesForSync object: ", g_FilesForSync)
         else:
             print("Classes 358: FilesForSync is empty.")
