@@ -367,14 +367,15 @@ class Server:
         clientResponse: str = self.serverSendResponse(clientSocket, SResponse.SendYourInfo)
 
         if clientResponse:
-            g_FilesForSync.extend([sync_file_from_dict(item) for item in json.loads(clientResponse)])
-            # for fs in json.loads(clientResponse):
-            #     currentFileSyncObj: FileForSync = sync_file_from_dict(fs)
-            #     print("Current FileSyncObj", currentFileSyncObj)
-            #     g_FilesForSync.append(currentFileSyncObj)
+            #g_FilesForSync.extend([sync_file_from_dict(item) for item in json.loads(clientResponse)])
+            for fs in json.loads(clientResponse):
+                currentFileSyncObj: FileForSync = sync_file_from_dict(fs)
+                if fs not in g_FilesForSync:
+                    g_FilesForSync.append(currentFileSyncObj)
 
             print("Should be FilesForSync object: ", g_FilesForSync)
-
+            jsonFilesForSync: str = json.dumps([fs.__dict__() for fs in g_FilesForSync])
+            clientSocket.send(jsonFilesForSync.encode())
 
         else:
             print("Classes 358: FilesForSync is empty.")
@@ -425,7 +426,6 @@ class FileForSync:
         self.usersSubbed: list[PeerList] = usersSubbed
 
     def __dict__(self):
-        print("dict line 408: ", self.usersSubbed)
         return {'fileName': self.fileName, 'usersSubbed': [us.__dict__() for us in self.usersSubbed]}
 
 

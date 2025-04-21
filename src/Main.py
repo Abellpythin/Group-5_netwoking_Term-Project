@@ -275,7 +275,7 @@ def initialConnect():
                 serverFileSyncList = peer_socket.recv(Classes.G_BUFFER).decode()
 
                 # Adds server
-                Classes.g_FilesForSync.extend([hf.sync_file_from_dict(item) for item in json.loads(serverFileSyncList)])
+                #Classes.g_FilesForSync.extend([hf.sync_file_from_dict(item) for item in json.loads(serverFileSyncList)])
 
                 for fs in json.loads(serverFileSyncList):
                     currentFileSyncObj: FileForSync = hf.sync_file_from_dict(fs)
