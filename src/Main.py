@@ -266,7 +266,6 @@ def initialConnect():
                     raise Exception("Server is not ready to receive my FilesForSync")
 
                 # Create and send json string
-                print("Main 268 should be Files for sync: ", Classes.g_FilesForSync)
                 jsonFilesForSync: str = json.dumps([fs.__dict__() for fs in Classes.g_FilesForSync])
 
                 peer_socket.send(jsonFilesForSync.encode())
@@ -278,7 +277,8 @@ def initialConnect():
                 #Classes.g_FilesForSync.extend([hf.sync_file_from_dict(item) for item in json.loads(serverFileSyncList)])
 
                 for fileSyncObj in [hf.sync_file_from_dict(item) for item in json.loads(serverFileSyncList)]:
-                    if fileSyncObj not in Classes.g_FilesForSync:
+                    if not any(fs.fileName == fileSyncObj.fileName for fs in Classes.g_FilesForSync):
+                        print(Classes.g_FilesForSync)
                         Classes.g_FilesForSync.append(fileSyncObj)
 
 
