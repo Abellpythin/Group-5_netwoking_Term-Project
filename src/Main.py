@@ -103,8 +103,8 @@ def runPeer():
             print("1. View Available Peers in Network\n"  # No direct functionality needed
                   "2. View Available Files in Network\n"  # From 2. The user can select and download this file
                   "3. Download Available File\n"
-                  "4. List files available for subscription (file syncing service)"
-                  "5. Save Subscribed File (CLick this if you've edited a file in FilesForSync)"
+                  "4. List files available for subscription (file syncing service)\n"
+                  "5. Save Subscribed File (CLick this if you've edited a file in FilesForSync)\n"
                   "n. Refresh PeerList (not implemented)\n"
                   "Press . to exit")
             userOption = input()
