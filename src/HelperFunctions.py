@@ -110,6 +110,7 @@ def waitForSecondConnection() -> None:
 
     while True:
         start: str = input().lower()
+        print()
         if(start == 'n'):
             break
         else:
@@ -202,25 +203,24 @@ def displayAvailableFiles() -> None:
     userPressesPeriod()
 
 
-def displayFilesForSync(userAsPeerList: PeerList) -> None:
+def handleSubscriptionToFile(userAsPeerList: PeerList) -> None:
     """
-    Display Available Files to Subscribe to. Does not include files the user is already subbed to
+    Display Available Files to Subscribe to. Does not include files the user is already subbed to.
+    :param userAsPeerList:
     :return:
     """
     counter: int = 1
     for file in Classes.g_FilesForSync:
-        if True or (userAsPeerList not in file.usersSubbed):
-            print(f"| {counter}. File name: {file.fileName}")
-            print(f"|   Users Subscribed:")
-            for user in file.usersSubbed:
-                print(f"| - {user.username}")
-            counter += 1
-    userPressesPeriod()
+        print(f"| {counter}. File name: {file.fileName}")
+        print(f"|   Users Subscribed:")
+        for user in file.usersSubbed:
+            print(f"| - {user.username}")
+        counter += 1
 
 
 def handleDownloadFileRequest(clientAddress: tuple[str, int], serverAddress: tuple[str, int]):
     """
-    TODO: Check to see if file is already downloaded
+    This functions allows the user to select what file they wish to download from the p2p network
     :param clientAddress:
     :param serverAddress:
     :return:

@@ -131,7 +131,7 @@ def runPeer():
                         hf.handleDownloadFileRequest((G_MY_IP, G_MY_PORT),
                                                      (g_serverIp, g_serverPort))
                     case 4:
-                        hf.displayFilesForSync(PeerList((G_MY_IP, G_MY_PORT), G_MY_USERNAME))
+                        hf.handleSubscriptionToFile(PeerList((G_MY_IP, G_MY_PORT), G_MY_USERNAME))
                     case _:
                         raise ValueError("runPeer match statement: Something seriously went wrong to get here")
             else:
@@ -273,16 +273,11 @@ def initialConnect():
                 # Receives the server's sync list
                 serverFileSyncList = peer_socket.recv(Classes.G_BUFFER).decode()
 
-                # Adds server
-                #Classes.g_FilesForSync.extend([hf.sync_file_from_dict(item) for item in json.loads(serverFileSyncList)])
-
+                # Adds server's File Sync List if not already in user's File Sync List
                 for fileSyncObj in [hf.sync_file_from_dict(item) for item in json.loads(serverFileSyncList)]:
                     if not any(fs.fileName == fileSyncObj.fileName for fs in Classes.g_FilesForSync):
                         print(Classes.g_FilesForSync)
                         Classes.g_FilesForSync.append(fileSyncObj)
-
-
-
 
                 connectionSuccess = not connectionSuccess
 
