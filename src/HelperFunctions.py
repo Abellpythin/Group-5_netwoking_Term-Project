@@ -209,12 +209,12 @@ def displayFilesForSync(userAsPeerList: PeerList) -> None:
     """
     counter: int = 1
     for file in Classes.g_FilesForSync:
-        if userAsPeerList not in file.usersSubbed:
+        if True or (userAsPeerList not in file.usersSubbed):
             print(f"| {counter}. File name: {file.fileName}")
             print(f"|   Users Subscribed:")
             for user in file.usersSubbed:
                 print(f"| - {user.username}")
-        counter += 1
+            counter += 1
     userPressesPeriod()
 
 

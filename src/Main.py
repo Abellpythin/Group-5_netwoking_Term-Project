@@ -279,7 +279,7 @@ def initialConnect():
 
                 for fs in json.loads(serverFileSyncList):
                     currentFileSyncObj: FileForSync = hf.sync_file_from_dict(fs)
-                    if fs not in Classes.g_FilesForSync:
+                    if currentFileSyncObj not in Classes.g_FilesForSync:
                         Classes.g_FilesForSync.append(currentFileSyncObj)
 
 

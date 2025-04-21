@@ -370,7 +370,7 @@ class Server:
             #g_FilesForSync.extend([sync_file_from_dict(item) for item in json.loads(clientResponse)])
             for fs in json.loads(clientResponse):
                 currentFileSyncObj: FileForSync = sync_file_from_dict(fs)
-                if fs not in g_FilesForSync:
+                if currentFileSyncObj not in g_FilesForSync:
                     g_FilesForSync.append(currentFileSyncObj)
 
             print("Should be FilesForSync object: ", g_FilesForSync)
