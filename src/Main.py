@@ -205,7 +205,7 @@ def checkFilesForSyncUpdates():
     fileNames: list[str] = hf.list_files_in_directory(syncFileDir)
 
     for fn in fileNames:
-        fileHash.update({fn: ""})
+        fileHash[fn] = hf.getFileHash(syncFileDir / fn)
 
 
 
@@ -222,13 +222,16 @@ def checkFilesForSyncUpdates():
                 fileHash.pop(fn)
 
         for fn in fileNames:
-            if fn not in fileHash.keys():
-                fileHash.update({fn: ""})
+            filePath: Path = syncFileDir / fn
+            if fn not in fileHash:
+                fileHash[fn] = hf.getFileHash(filePath)
+                continue
 
             # Check to see if the file has been modified
-            modified: bool = hf.fileHasChanged((syncFileDir / fn), fileHash[fn])
+            modified: bool = hf.fileHasChanged(filePath, fileHash[fn])
             if modified:
                 print(f"{fn} has been modified")
+                fileHash[fn] = hf.getFileHash(filePath)
 
         time.sleep(G_FILE_SYNC_CHECK)
 
