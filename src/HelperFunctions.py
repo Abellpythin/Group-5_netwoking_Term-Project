@@ -5,6 +5,8 @@ from pathlib import Path
 
 import Classes
 from Classes import Peer
+from Classes import FileForSync
+from Classes import PeerList
 
 
 def clientSendRequest(peer_socket: socket, cRequest: Classes.CRequest | int) -> str:
@@ -279,4 +281,18 @@ def downloadFile(file: Classes.File, clientAddress: tuple[str, int], serverAddre
         except (TimeoutError, InterruptedError, ConnectionRefusedError) as err:
             print(err)
             print("Connection did not go through. Check the Client IP and Port")
+
+
+def setInitialFilesForSync(userAddr: tuple[str, int], userName: str) -> None:
+    currentDirectory: Path = Path.cwd()
+    parent_of_parent_directory: Path = currentDirectory.parent / "FilesForSync"
+    fileNames: list[str] = list_files_in_directory(parent_of_parent_directory)
+
+    fileForSyncObjList: list[FileForSync] = []
+    thisUser: PeerList = PeerList(userAddr, userName)
+
+    # Initially only this user is subscribed to the folder
+    for fn in fileNames:
+        Classes.g_FilesForSync.append(FileForSync(fn, [thisUser]))
+
 

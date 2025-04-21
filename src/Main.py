@@ -91,7 +91,7 @@ def runPeer():
     global G_ENDPROGRAM
 
     #Debugging
-    time.sleep(0.5)
+    #time.sleep(0.5)
 
     userOption: int | chr
 
@@ -249,6 +249,16 @@ def initialConnect():
                 fileObjectJsonList = hf.clientSendRequest(peer_socket, CRequest.RequestFileList)
 
                 Classes.G_FileList = [Classes.file_from_dict(file) for file in json.loads(fileObjectJsonList)]
+
+                """
+                If there are any files currently in FilesForSync, save them into Classes.g_FilesWithSync
+                Subscriptions happen on a session basis meaning the program doesn't remember who's subscribed after they
+                leave
+                """
+                hf.setInitialFilesForSync((G_MY_IP, G_MY_PORT), G_MY_USERNAME)
+
+
+
 
                 connectionSuccess = not connectionSuccess
 

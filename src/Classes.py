@@ -13,6 +13,7 @@ G_BUFFER: int = 4096  # Bytes
 # Ensure that any modifications to these list are used with Lock
 G_peerList: list[PeerList] = []
 G_FileList: list[File] = []
+g_FilesForSync: list[FileForSync] = []
 G_peerListLock: threading.Lock = threading.Lock()
 
 
@@ -38,6 +39,7 @@ class SResponse(Enum):
     Connected = 0  # Handles standard connection
     SendYourInfo = 1  # Response when client wants to send info (peerlist, files, etc.)
     SendWantedFileName = 2  # Response when client wants to download file
+
 
 def list_files_in_directory(directory_path) -> list[str]:
     """
@@ -374,6 +376,15 @@ class File:
         return(self.fileName, self.userName, self.addr) == (other.fileName, other.userName, other.addr)
 
 
+class FileForSync:
+    def __init__(self, fileName: str, usersSubscribed: list[PeerList]):
+        self.fileName: str = fileName
+        self.usersSubbed: list[PeerList] = usersSubscribed
+
+    def __dict__(self):
+        return {'fileName': self.fileName, 'usersSubscribed': self.usersSubbed}
+
+
 class PeerList:
     """
     This class is used to send peer information to the clients. Peer is used locally, PeerList is used
@@ -392,6 +403,7 @@ class PeerList:
 
     def __eq__(self, other: PeerList):
         return (self.addr, self.username) == (other.addr, other.username)
+
 
 # For future security it MIGHT be useful to make methods that check the ip address
 # Files and peer list should be separate. They can always be combined but separating is much harder
