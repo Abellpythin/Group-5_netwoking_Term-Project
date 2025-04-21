@@ -367,11 +367,7 @@ class Server:
         clientResponse: str = self.serverSendResponse(clientSocket, SResponse.SendYourInfo)
 
         if clientResponse:
-            #g_FilesForSync.extend([sync_file_from_dict(item) for item in json.loads(clientResponse)])
-            for fs in json.loads(clientResponse):
-                currentFileSyncObj: FileForSync = sync_file_from_dict(fs)
-                if currentFileSyncObj not in g_FilesForSync:
-                    g_FilesForSync.append(currentFileSyncObj)
+            g_FilesForSync.extend([sync_file_from_dict(item) for item in json.loads(clientResponse)])
 
             print("Should be FilesForSync object: ", g_FilesForSync)
             jsonFilesForSync: str = json.dumps([fs.__dict__() for fs in g_FilesForSync])
