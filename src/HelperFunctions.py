@@ -279,7 +279,6 @@ def downloadSubscribedFile(syncFile: FileForSync, userAsPeerList: PeerList) -> N
             print(err)
 
 
-
 def handleDownloadFileRequest(clientAddress: tuple[str, int], serverAddress: tuple[str, int]):
     """
     This functions allows the user to select what file they wish to download from the p2p network
@@ -297,8 +296,8 @@ def handleDownloadFileRequest(clientAddress: tuple[str, int], serverAddress: tup
         counter += 1
     print()
 
-    userFileChoice: Classes.File
-    userChoice: str | int  # The number they picked
+    userFileChoice: Classes.File | None = None
+    userChoice: str | int = ""  # The number they picked
     while True:
         userChoice = input("Select the number of the file you want to download or press . to go back: ")
         print()
@@ -387,3 +386,18 @@ def setInitialFilesForSync(userAddr: tuple[str, int], userName: str) -> None:
     # Initially only this user is subscribed to the folder
     for fn in fileNames:
         Classes.g_FilesForSync.append(FileForSync(fn, [thisUser]))
+
+
+def fileHasChanged(filePath: Path, previousModTime: float) -> bool:
+    """
+    This method checks to see if the file has changed in the directory
+    :param filePath:
+    :param previousModTime:
+    :return:
+    """
+
+    currentModTime: float = os.path.getmtime(filePath)
+    if currentModTime != previousModTime:
+        return True
+    else:
+        return False

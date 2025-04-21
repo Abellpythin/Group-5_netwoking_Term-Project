@@ -97,7 +97,7 @@ class Peer:
 
     def initializeFiles(self) -> None:
         """
-        This function will automaticallu append the user's files in the Files folder to the user's files
+        This function will automatically append the user's files in the Files folder to the user's files
         :return:
         """
 

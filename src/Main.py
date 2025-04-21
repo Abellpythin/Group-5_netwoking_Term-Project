@@ -2,8 +2,9 @@ from __future__ import annotations
 import json
 import queue
 import threading
+from pathlib import Path
 import socket  # For type annotation
-import time # for debugging
+import time
 
 import Classes  # Classes.G_peerList
 from Classes import Peer
@@ -26,10 +27,12 @@ import HelperFunctions as hf
 G_MY_PORT: int = 59878
 G_MY_IP: str = ''
 G_MY_USERNAME: str | None = "Debugger"
-G_MAX_CONNECTIONS: int = 5
+G_MAX_CONNECTIONS: int = 3
 
 g_serverIp: str | None
 g_serverPort: int | None
+
+G_FILE_SYNC_CHECK: int = 15  # The interval in seconds each file in FileForSync is checked for changes
 
 
 # When the user wants to end the program this variable changes to True and
@@ -70,11 +73,16 @@ def main():
 
     initialConnect()
 
+    # Start
+    fileSyncThread: threading.Thread = threading.Thread(target=checkFilesForSyncUpdates, daemon=True)
+    fileSyncThread.start()
+
     peerThread: threading.Thread = threading.Thread(target=runPeer, daemon=True)
     peerThread.start()
 
     # Main will not conclude until both threads join so no need for infinite while loop
     serverThread.join()
+    fileSyncThread.join()
     peerThread.join()
 
     print("Complete!")
@@ -181,6 +189,53 @@ def runServer():
 
         for thread in threads:
             thread.join()
+
+
+def checkFilesForSyncUpdates():
+    """
+    This function is run on a thread. It will iteratively check each file every x amount of seconds in the FilesForSync
+    directory and if any users are subscribed to the file, it will send the update to them automatically
+    :return:
+    """
+
+    # list of dictionaries mapping the filename to their last modification
+    modTime: dict[str:float] = {}
+    currentDirectory: Path = Path.cwd()
+    syncFileDir: Path = currentDirectory.parent / "FilesForSync"
+    fileNames: list[str] = hf.list_files_in_directory(syncFileDir)
+
+    for fn in fileNames:
+        modTime.update({fn: 0})
+
+
+
+    while not G_ENDPROGRAM:
+        # If new file not in dict, add it with an initial time of 0
+        # Do not send update to this (the current/the one who updated the file) user (obviously)
+
+        # Update fileNames to ensure
+        fileNames: list[str] = hf.list_files_in_directory(syncFileDir)
+
+        # Checks to see if any files have been deleted and deletes them if so
+        for fn in modTime.keys():
+            if fn not in fileNames:
+                modTime.pop(fn)
+
+        for fn in fileNames:
+            if fn not in modTime.keys():
+                modTime.update({fn: 0})
+
+            # Check to see if the file has been modified
+            modified: bool = hf.fileHasChanged(syncFileDir / fn, modTime[fn])
+            if modified:
+                print(f"{fn} has been modified")
+
+
+
+
+
+        time.sleep(G_FILE_SYNC_CHECK)
+
 
 
 def initialConnect():
