@@ -248,7 +248,9 @@ def initialConnect():
                 # Receive file list
                 fileObjectJsonList = hf.clientSendRequest(peer_socket, CRequest.RequestFileList)
 
-                Classes.G_FileList = [Classes.file_from_dict(file) for file in json.loads(fileObjectJsonList)]
+                if fileObjectJsonList:
+                    Classes.G_FileList = [Classes.file_from_dict(file) for file in json.loads(fileObjectJsonList)]
+                    print(Classes.G_FileList)
 
                 """
                 If there are any files currently in FilesForSync, save them into Classes.g_FilesWithSync
