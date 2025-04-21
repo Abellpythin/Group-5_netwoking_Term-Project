@@ -284,6 +284,12 @@ class Server:
         clientSocket.send(json_data.encode())
         return True
 
+    def sendSyncFileList(self, clientSocket: socket):
+        json_data: str = json.dumps([fs.__dict__() for fs in g_FilesForSync])
+
+        clientSocket.send(json_data.encode())
+
+
     def confirmConnection(self, clientSocket: socket) -> bool:
         success: bool = True
         try:
@@ -368,6 +374,8 @@ class Server:
             #     g_FilesForSync.append(currentFileSyncObj)
 
             print("Should be FilesForSync object: ", g_FilesForSync)
+
+
         else:
             print("Classes 358: FilesForSync is empty.")
 

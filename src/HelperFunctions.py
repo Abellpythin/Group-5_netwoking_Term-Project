@@ -9,6 +9,19 @@ from Classes import FileForSync
 from Classes import PeerList
 
 
+def peerList_from_dict(peerAsDict):
+    """
+    Unpacks Json serialization of PeerList (not to be mistaken with G_PeerList)
+    :param peerAsDict:
+    :return:
+    """
+    return PeerList(**peerAsDict)
+
+
+def sync_file_from_dict(syncFileAsDict):
+    usersSubbed = [peerList_from_dict(u) for u in syncFileAsDict['usersSubbed']]
+    return FileForSync(fileName=syncFileAsDict['fileName'], usersSubbed=usersSubbed)
+
 def clientSendRequest(peer_socket: socket, cRequest: Classes.CRequest | int) -> str:
     """
     Sends a request to a server

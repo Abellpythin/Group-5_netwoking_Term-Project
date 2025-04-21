@@ -11,6 +11,7 @@ from Classes import Server
 from Classes import CRequest
 from Classes import SResponse
 from Classes import PeerList
+from Classes import FileForSync
 
 import HelperFunctions as hf
 
@@ -268,12 +269,18 @@ def initialConnect():
                 print("Main 268 should be Files for sync: ", Classes.g_FilesForSync)
                 jsonFilesForSync: str = json.dumps([fs.__dict__() for fs in Classes.g_FilesForSync])
 
-                # jsonFilesForSync: str = ""
-                # for fileSync in Classes.g_FilesForSync:
-                #     print(fileSync)
-                #     jsonFilesForSync = json.dumps(fileSync.__dict__())
-
                 peer_socket.send(jsonFilesForSync.encode())
+
+                # Receives the server's sync list
+                serverFileSyncList = peer_socket.recv(Classes.G_BUFFER).decode()
+
+                # Adds server
+                Classes.g_FilesForSync.extend([hf.sync_file_from_dict(item) for item in json.loads(serverFileSyncList)])
+
+                for fs in json.loads(serverFileSyncList):
+                    currentFileSyncObj: FileForSync = hf.sync_file_from_dict(fs)
+                    if fs not in Classes.g_FilesForSync:
+                        Classes.g_FilesForSync.append(currentFileSyncObj)
 
 
 
