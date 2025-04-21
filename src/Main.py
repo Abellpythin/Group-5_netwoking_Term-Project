@@ -199,13 +199,13 @@ def checkFilesForSyncUpdates():
     """
 
     # list of dictionaries mapping the filename to their last modification
-    modTime: dict[str:float] = {}
+    fileHash: dict[str:str] = {}
     currentDirectory: Path = Path.cwd()
     syncFileDir: Path = currentDirectory.parent / "FilesForSync"
     fileNames: list[str] = hf.list_files_in_directory(syncFileDir)
 
     for fn in fileNames:
-        modTime.update({fn: 0})
+        fileHash.update({fn: ""})
 
 
 
@@ -217,22 +217,18 @@ def checkFilesForSyncUpdates():
         fileNames: list[str] = hf.list_files_in_directory(syncFileDir)
 
         # Checks to see if any files have been deleted and deletes them if so
-        for fn in modTime.keys():
+        for fn in fileHash.keys():
             if fn not in fileNames:
-                modTime.pop(fn)
+                fileHash.pop(fn)
 
         for fn in fileNames:
-            if fn not in modTime.keys():
-                modTime.update({fn: 0})
+            if fn not in fileHash.keys():
+                fileHash.update({fn: ""})
 
             # Check to see if the file has been modified
-            modified: bool = hf.fileHasChanged(syncFileDir / fn, modTime[fn])
+            modified: bool = hf.fileHasChanged((syncFileDir / fn), fileHash[fn])
             if modified:
                 print(f"{fn} has been modified")
-
-
-
-
 
         time.sleep(G_FILE_SYNC_CHECK)
 

@@ -1,6 +1,7 @@
 import os
 import socket
 import json
+import hashlib
 from pathlib import Path
 
 import Classes
@@ -388,16 +389,25 @@ def setInitialFilesForSync(userAddr: tuple[str, int], userName: str) -> None:
         Classes.g_FilesForSync.append(FileForSync(fn, [thisUser]))
 
 
-def fileHasChanged(filePath: Path, previousModTime: float) -> bool:
+def getFileHash(filePath: Path) -> str:
+    hasher: hash = hashlib.md5()
+    with open(filePath, 'rb') as file:
+        while True:
+            data = file.read(Classes.G_BUFFER)
+            if not data:
+                break
+            hasher.update(data)
+    return hasher.hexdigest()
+
+
+def fileHasChanged(filePath: Path, previousHash: str) -> bool:
     """
     This method checks to see if the file has changed in the directory
     :param filePath:
-    :param previousModTime:
+    :param previousHash:
     :return:
     """
-
-    currentModTime: float = os.path.getmtime(filePath)
-    if currentModTime != previousModTime:
+    currentHash: str = getFileHash(filePath)
+    if currentHash != previousHash:
         return True
-    else:
-        return False
+    return False
