@@ -30,6 +30,7 @@ class CRequest(Enum):
     RequestFile = 3  # To download
     SendMyFiles = 4  # Sends list of File names (Not the contents itself)
     RequestFileList = 5  # Request File list
+    SendMySyncFiles = 6  # Sends List of Files and users subscribed to it
 
 
 class SResponse(Enum):
@@ -208,6 +209,9 @@ class Server:
                     case CRequest.RequestFileList.name:
                         requestsHandled = self.sendFileList(clientSocket)
 
+                    case CRequest.SendMySyncFiles.name:
+                        requestsHandled = self.receiveSyncFileList(clientSocket)
+
                     case _:
                         requestsHandled = False
 
@@ -217,6 +221,7 @@ class Server:
                 except TimeoutError as e:
                     # If we timeout then good, the while loop will simply end
                     # The socket timeout is equivalent to the function timer so no worries
+                    print(f"Client took too long. Tell them hurry up")
                     continue
 
                 endTime = time.time()
@@ -334,7 +339,23 @@ class Server:
         if clientResponse:
             G_FileList.extend([file_from_dict(item) for item in json.loads(clientResponse)])
         else:
-            print("Classes 363: File list client sent was empty")
+            print("Classes 342: File list client sent was empty")
+
+        return True
+
+    def receiveSyncFileList(self, clientSocket: socket) -> bool:
+        """
+        This will receive the client's FilesForSync directory
+        :param clientSocket:
+        :return:
+        """
+        clientResponse: str = self.serverSendResponse(clientSocket, SResponse.SendYourInfo)
+
+        if clientResponse:
+            g_FilesForSync.extend([file_from_dict(item) for item in json.loads(clientResponse)])
+            print("Should be FilesForSync object: ", g_FilesForSync)
+        else:
+            print("Classes 358: FilesForSync is empty.")
 
         return True
 

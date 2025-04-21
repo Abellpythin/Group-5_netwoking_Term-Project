@@ -216,13 +216,13 @@ def initialConnect():
 
                 # For future error implementation
                 if serverResponse != SResponse.Connected.name:
-                    raise Exception("Something went wrong")
+                    raise Exception("Server is not ready to be connected")
 
                 # Sends a second request asking to add this user into the peer network
                 serverResponse = hf.clientSendRequest(peer_socket, CRequest.AddMe)
 
                 if serverResponse != SResponse.SendYourInfo.name:
-                    raise Exception("Something went wrong")
+                    raise Exception("Server is not ready to add me")
 
                 # Sends the user's info to be added to peer list
                 jsonUserPeer: str = json.dumps(userPeer.__dict__())
@@ -239,7 +239,7 @@ def initialConnect():
                 serverResponse = hf.clientSendRequest(peer_socket, CRequest.SendMyFiles)
 
                 if serverResponse != SResponse.SendYourInfo.name:
-                    raise Exception("Something went wrong")
+                    raise Exception("Server is not ready to receive my peerList")
 
                 fileJsonList: str = json.dumps([file.__dict__() for file in selfPeer.files])
 
@@ -257,8 +257,16 @@ def initialConnect():
                 """
                 hf.setInitialFilesForSync((G_MY_IP, G_MY_PORT), G_MY_USERNAME)
 
+                serverResponse = hf.clientSendRequest(peer_socket, CRequest.SendMySyncFiles)
 
+                if serverResponse != SResponse.SendYourInfo.name:
+                    raise Exception("Server is not ready to receive my FilesForSync")
 
+                # Create and send json string
+                jsonFilesForSync: str = json.dumps(fs.__dict__() for fs in Classes.g_FilesForSync)
+                peer_socket.send(jsonFilesForSync.encode())
+
+                
 
                 connectionSuccess = not connectionSuccess
 
