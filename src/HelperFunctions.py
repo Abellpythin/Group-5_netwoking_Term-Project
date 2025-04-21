@@ -232,6 +232,11 @@ def handleSubscriptionToFile(userAsPeerList: PeerList) -> None:
             return
         print("Please enter a valid input.")
 
+    downloadSubscribedFile(userSyncFileChoice, userAsPeerList)
+    print("File successfully downloaded")
+    print("Stop the program to see your download\n")
+
+
 def downloadSubscribedFile(syncFile: FileForSync, userAsPeerList: PeerList) -> None:
     selfPeer: Peer = Peer(userAsPeerList.addr)
 
@@ -264,6 +269,7 @@ def downloadSubscribedFile(syncFile: FileForSync, userAsPeerList: PeerList) -> N
                     if not data:
                         break
                     f.write(data)
+                    print(data)
                     receivedSize += len(data)
 
         except (TimeoutError, InterruptedError, ConnectionRefusedError) as err:

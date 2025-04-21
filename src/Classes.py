@@ -289,7 +289,6 @@ class Server:
 
         clientSocket.send(json_data.encode())
 
-
     def confirmConnection(self, clientSocket: socket) -> bool:
         success: bool = True
         try:
