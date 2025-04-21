@@ -400,9 +400,9 @@ class File:
 
 
 class FileForSync:
-    def __init__(self, fileName: str, usersSubscribed: list[PeerList]):
+    def __init__(self, fileName: str, usersSubbed: list[PeerList]):
         self.fileName: str = fileName
-        self.usersSubbed: list[PeerList] = usersSubscribed
+        self.usersSubbed: list[PeerList] = usersSubbed
 
     def __dict__(self):
         return {'fileName': self.fileName, 'usersSubbed': [us.__dict__() for us in self.usersSubbed]}
