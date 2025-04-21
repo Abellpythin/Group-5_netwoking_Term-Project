@@ -263,10 +263,10 @@ def initialConnect():
                     raise Exception("Server is not ready to receive my FilesForSync")
 
                 # Create and send json string
-                jsonFilesForSync: str = json.dumps(fs.__dict__() for fs in Classes.g_FilesForSync)
+                jsonFilesForSync: str = json.dumps([fs.__dict__() for fs in Classes.g_FilesForSync])
                 peer_socket.send(jsonFilesForSync.encode())
 
-                
+
 
                 connectionSuccess = not connectionSuccess
 

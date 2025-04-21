@@ -403,7 +403,7 @@ class FileForSync:
         self.usersSubbed: list[PeerList] = usersSubscribed
 
     def __dict__(self):
-        return {'fileName': self.fileName, 'usersSubscribed': self.usersSubbed}
+        return {'fileName': self.fileName, 'usersSubscribed': [us.__dict__() for us in self.usersSubbed]}
 
 
 class PeerList:
