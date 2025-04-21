@@ -31,6 +31,7 @@ class CRequest(Enum):
     SendMyFiles = 4  # Sends list of File names (Not the contents itself)
     RequestFileList = 5  # Request File list
     SendMySyncFiles = 6  # Sends List of Files and users subscribed to it
+    RequestSyncFiles = 7  # Requests server's sync Files
 
 
 class SResponse(Enum):
@@ -214,6 +215,9 @@ class Server:
                     case CRequest.SendMySyncFiles.name:
                         requestsHandled = self.receiveSyncFileList(clientSocket)
 
+                    case CRequest.RequestSyncFiles.name:
+                        requestsHandled
+
                     case _:
                         requestsHandled = False
 
@@ -355,6 +359,11 @@ class Server:
 
         if clientResponse:
             g_FilesForSync.extend([sync_file_from_dict(item) for item in json.loads(clientResponse)])
+            # for fs in json.loads(clientResponse):
+            #     currentFileSyncObj: FileForSync = sync_file_from_dict(fs)
+            #     print("Current FileSyncObj", currentFileSyncObj)
+            #     g_FilesForSync.append(currentFileSyncObj)
+
             print("Should be FilesForSync object: ", g_FilesForSync)
         else:
             print("Classes 358: FilesForSync is empty.")
@@ -405,6 +414,7 @@ class FileForSync:
         self.usersSubbed: list[PeerList] = usersSubbed
 
     def __dict__(self):
+        print("dict line 408: ", self.usersSubbed)
         return {'fileName': self.fileName, 'usersSubbed': [us.__dict__() for us in self.usersSubbed]}
 
 

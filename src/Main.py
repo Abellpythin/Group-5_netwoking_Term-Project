@@ -104,7 +104,7 @@ def runPeer():
                   "2. View Available Files in Network\n"  # From 2. The user can select and download this file
                   "3. Download Available File\n"
                   "4. List files available for subscription (file syncing service)\n"
-                  "5. Save Subscribed File (CLick this if you've edited a file in FilesForSync)\n"
+                  "5. Save Subscribed File (Click this if you've edited a file in FilesForSync)\n"
                   "n. Refresh PeerList (not implemented)\n"
                   "Press . to exit")
             userOption = input()
@@ -265,7 +265,14 @@ def initialConnect():
                     raise Exception("Server is not ready to receive my FilesForSync")
 
                 # Create and send json string
-                jsonFilesForSync: str = json.dumps([fs.__dict__() for fs in Classes.g_FilesForSync])
+                print("Main 268 should be Files for sync: ", Classes.g_FilesForSync)
+                # jsonFilesForSync: str = json.dumps([fs.__dict__() for fs in Classes.g_FilesForSync])
+
+                jsonFilesForSync: str = ""
+                for fileSync in Classes.g_FilesForSync:
+                    print(fileSync)
+                    jsonFilesForSync = json.dumps(fileSync.__dict__())
+
                 peer_socket.send(jsonFilesForSync.encode())
 
 
