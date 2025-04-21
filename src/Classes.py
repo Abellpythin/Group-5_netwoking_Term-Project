@@ -31,7 +31,7 @@ class CRequest(Enum):
     SendMyFiles = 4  # Sends list of File names (Not the contents itself)
     RequestFileList = 5  # Request File list
     SendMySyncFiles = 6  # Sends List of Files and users subscribed to it
-    RequestSyncFiles = 7  # Requests server's sync Files
+    SubscribeToFile = 7  # The client will subscribe to file
 
 
 class SResponse(Enum):
@@ -218,8 +218,8 @@ class Server:
                     case CRequest.SendMySyncFiles.name:
                         requestsHandled = self.receiveSyncFileList(clientSocket)
 
-                    case CRequest.RequestSyncFiles.name:
-                        requestsHandled
+                    case CRequest.SubscribeToFile.name:
+                        requestsHandled = self.sendSyncFileContent(clientSocket)
 
                     case _:
                         requestsHandled = False
@@ -324,14 +324,37 @@ class Server:
 
         if wantedFile.fileName in fileNames:
             filePath: Path = parent_of_parent_directory / wantedFile.fileName
-            fpString = str(filePath)
             fileSize: int = os.stat(str(filePath)).st_size
-            print(filePath)
 
             # Path does exist
-            print(os.path.exists(filePath))
+            #print(os.path.exists(filePath))
             clientSocket.send(f"{fileSize}".encode())
-            print(f"Sent file size {fileSize}\n")
+            #print(f"Sent file size {fileSize}\n")
+
+            with open(filePath, 'rb') as f:
+                while True:
+                    data = f.read(1024)
+                    if not data:
+                        break
+                    clientSocket.sendall(data)
+
+        return True
+
+    def sendSyncFileContent(self, clientSocket: socket):
+        # Receive Client's wanted SyncFile (File in FilesForSync)
+        clientResponse: str = self.serverSendResponse(clientSocket, SResponse.SendWantedFileName)
+
+        wantedSyncFile: FileForSync = sync_file_from_dict(json.loads(clientResponse))
+
+        currentDirectory: Path = Path.cwd()
+        syncFilePath: Path = currentDirectory.parent / "FilesForSync/"
+
+        fileNames: list[str] = list_files_in_directory(syncFilePath)
+
+        if wantedSyncFile.fileName in fileNames:
+            filePath: Path = syncFilePath / wantedSyncFile.fileName
+            fileSize: int = os.stat(str(filePath)).st_size
+            clientSocket.send(f"{fileSize}".encode())
 
             with open(filePath, 'rb') as f:
                 while True:

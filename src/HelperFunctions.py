@@ -217,6 +217,60 @@ def handleSubscriptionToFile(userAsPeerList: PeerList) -> None:
             print(f"| - {user.username}")
         counter += 1
 
+    userSyncFileChoice: FileForSync
+    userChoice: int | str
+
+    while True:
+        userChoice = input("Select the number of the file you want to subscribe to or press . to go back: ")
+        print()
+        if userChoice.isdigit():
+            userChoice = int(userChoice) - 1
+            if 0 <= userChoice <= (len(Classes.g_FilesForSync) - 1):
+                userSyncFileChoice = Classes.g_FilesForSync[userChoice]
+                break
+        elif userChoice == '.':
+            return
+        print("Please enter a valid input.")
+
+def downloadSubscribedFile(syncFile: FileForSync, userAsPeerList: PeerList) -> None:
+    selfPeer: Peer = Peer(userAsPeerList.addr)
+
+    with selfPeer.createTCPSocket() as peer_socket:
+        try:
+            peer_socket.connect(syncFile.usersSubbed[0].addr)
+            peer_socket.timeout(120)
+
+            serverResponse: str = clientSendRequest(peer_socket, Classes.CRequest.SubscribeToFile)
+            if serverResponse != Classes.SResponse.SendYourInfo.SendWantedFileName:
+                raise Exception("Subscribing to file failed in downloadSubscribedFile() HelperFunctions.py")
+
+            jsonSyncFile: str = json.dumps(syncFile.__dict__())
+            peer_socket.send(jsonSyncFile)
+
+            fileSize: int = int(peer_socket.recv(Classes.G_BUFFER).decode())
+            print(f"Received Sync File size{fileSize}\n")
+            if not fileSize:
+                raise FileNotFoundError("MakeSure File is openable")
+
+            currentDirectory: Path = Path.cwd()
+            directoryPath: Path = currentDirectory.parent / "FilesForSync" / syncFile.fileName
+
+            os.makedirs(os.path.dirname(directoryPath), exist_ok=True)
+
+            receivedSize: int = 0
+            with open(directoryPath, 'wb') as f:
+                while receivedSize < fileSize:
+                    data = peer_socket.recv(Classes.G_BUFFER)
+                    if not data:
+                        break
+                    f.write(data)
+                    receivedSize += len(data)
+
+        except (TimeoutError, InterruptedError, ConnectionRefusedError) as err:
+            print("handleSubscriptionToFile Failed")
+            print(err)
+
+
 
 def handleDownloadFileRequest(clientAddress: tuple[str, int], serverAddress: tuple[str, int]):
     """
@@ -238,13 +292,15 @@ def handleDownloadFileRequest(clientAddress: tuple[str, int], serverAddress: tup
     userFileChoice: Classes.File
     userChoice: str | int  # The number they picked
     while True:
-        userChoice = input("Select the number of the file you want to download: ")
+        userChoice = input("Select the number of the file you want to download or press . to go back: ")
         print()
         if userChoice.isdigit():
             userChoice = int(userChoice) - 1
             if 0 <= userChoice <= (len(Classes.G_FileList) - 1):
                 userFileChoice = Classes.G_FileList[userChoice]
                 break
+        elif userChoice == '.':
+            return
         print("Please enter a valid input.\n")
 
     downloadFile(userFileChoice, clientAddress, serverAddress)
@@ -309,6 +365,7 @@ def downloadFile(file: Classes.File, clientAddress: tuple[str, int], serverAddre
         except (TimeoutError, InterruptedError, ConnectionRefusedError) as err:
             print(err)
             print("Connection did not go through. Check the Client IP and Port")
+            peer_socket.close()
 
 
 def setInitialFilesForSync(userAddr: tuple[str, int], userName: str) -> None:
