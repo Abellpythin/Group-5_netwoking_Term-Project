@@ -172,6 +172,7 @@ def displayAvailablePeers() -> None:
 
     return
 
+
 def displayAvailableFiles() -> None:
     """
     Displays the available files to download for the user
@@ -179,15 +180,29 @@ def displayAvailableFiles() -> None:
     """
     counter: int = 1
     for file in Classes.G_FileList:
-        print(f"| Name: {file.fileName}\n"
+        print(f"|{counter}. file name: {file.fileName}\n"
               # Preferably we want files to have owners
-              f"| Owner: {file.userName if file.userName else "No owner"}\n"
+              f"|   Owner: {file.userName if file.userName else "No owner"}\n"
               # Location should never be unknown. How else would you get the file
-              f"| Address: {file.addr if file.addr else "Location Unknown"}\n")
+              f"|   Address: {file.addr if file.addr else "Location Unknown"}\n")
         counter += 1
     userPressesPeriod()
 
-    return
+
+def displayFilesForSync(userAsPeerList: PeerList) ->None:
+    """
+    Display Available Files to Subscribe to
+    :return:
+    """
+    counter: int = 1
+    for file in Classes.g_FilesForSync:
+        if userAsPeerList != file:
+            print(f"| {counter}. File name: {file.fileName}")
+            print(f"|   Users Subscribed:")
+            for user in file.usersSubbed:
+                print(f"| - {user.username}")
+        counter += 1
+    userPressesPeriod()
 
 
 def handleDownloadFileRequest(clientAddress: tuple[str, int], serverAddress: tuple[str, int]):
@@ -201,9 +216,9 @@ def handleDownloadFileRequest(clientAddress: tuple[str, int], serverAddress: tup
     for file in Classes.G_FileList:
         print(f"|{counter}. Name: {file.fileName}\n"
               # Preferably we want files to have owners
-              f"|           Owner: {file.userName if file.userName else "No owner"}\n"
+              f"|   Owner: {file.userName if file.userName else "No owner"}\n"
               # Location should never be unknown. How else would you get the file
-              f"|           Address: {file.addr if file.addr else "Location Unknown"}\n")
+              f"|   Address: {file.addr if file.addr else "Location Unknown"}\n")
         counter += 1
     print()
 
@@ -294,5 +309,3 @@ def setInitialFilesForSync(userAddr: tuple[str, int], userName: str) -> None:
     # Initially only this user is subscribed to the folder
     for fn in fileNames:
         Classes.g_FilesForSync.append(FileForSync(fn, [thisUser]))
-
-

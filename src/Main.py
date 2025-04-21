@@ -130,7 +130,7 @@ def runPeer():
                         hf.handleDownloadFileRequest((G_MY_IP, G_MY_PORT),
                                                      (g_serverIp, g_serverPort))
                     case 4:
-                        pass
+                        hf
                     case _:
                         raise ValueError("runPeer match statement: Something seriously went wrong to get here")
             else:
