@@ -189,14 +189,14 @@ def displayAvailableFiles() -> None:
     userPressesPeriod()
 
 
-def displayFilesForSync(userAsPeerList: PeerList) ->None:
+def displayFilesForSync(userAsPeerList: PeerList) -> None:
     """
-    Display Available Files to Subscribe to
+    Display Available Files to Subscribe to. Does not include files the user is already subbed to
     :return:
     """
     counter: int = 1
     for file in Classes.g_FilesForSync:
-        if userAsPeerList != file:
+        if userAsPeerList not in file.usersSubbed:
             print(f"| {counter}. File name: {file.fileName}")
             print(f"|   Users Subscribed:")
             for user in file.usersSubbed:
