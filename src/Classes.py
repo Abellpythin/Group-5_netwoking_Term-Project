@@ -438,7 +438,7 @@ class Server:
                 if user.username == self.userName:
                     usersToBeSent.remove(user)
             print("Server Line 427: I got the update")
-            
+
             sendFileSyncUpdate(fileName, filePath, Peer(self.address, self.userName), usersToBeSent)
 
         return True
@@ -469,7 +469,6 @@ class Server:
         clientResponse: str = self.serverSendResponse(clientSocket, SResponse.SendYourInfo)
 
         if clientResponse:
-            # g_FilesForSync.extend([sync_file_from_dict(item) for item in json.loads(clientResponse)])
 
             for fileSyncObj in [sync_file_from_dict(item) for item in json.loads(clientResponse)]:
                 if not any(fs.fileName == fileSyncObj.fileName for fs in g_FilesForSync):
@@ -570,14 +569,7 @@ def sendFileSyncUpdate(fileName: str, filePath: Path, userAsPeerList: Peer, user
     :return:
     """
 
-    # subbedUser: list[PeerList] = []
-    # for syncFile in Classes.g_FilesForSync:
-    #     if syncFile.fileName == fileName:
-    #         subbedUser = syncFile.usersSubbed
-    #
-    # for user in subbedUser:
-    #     if user.username == userAsPeerList.username:
-    #         subbedUser.remove(user)
+
 
     if not usersToBeSent:
         print("sendFileSyncUpdate 437: No more users to send update to\n")

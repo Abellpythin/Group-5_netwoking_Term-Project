@@ -4,6 +4,7 @@ import os
 import socket
 import json
 import hashlib
+import time
 from pathlib import Path
 
 import Classes
@@ -459,7 +460,6 @@ def sendFileSyncUpdate(fileName: str, filePath: Path, userAsPeerList: Peer, user
     """
 
     if not usersToBeSent:
-        print("sendFileSyncUpdate 437: No more users to send update to\n")
         return
 
     userToSendTo: tuple[str, int] = usersToBeSent.pop(0).addr
@@ -486,6 +486,9 @@ def sendFileSyncUpdate(fileName: str, filePath: Path, userAsPeerList: Peer, user
                     jsonUsersToBeSent: str = json.dumps([user.__dict__() for user in usersToBeSent])
                     print(f"Before sending Users who need it send: {usersToBeSent}")
                     peer_socket.send(jsonUsersToBeSent.encode())
+
+                    #Optimize later I can't be bothered
+                    time.sleep(0.5)
 
                     sendFileTo(peer_socket, filePath)
 

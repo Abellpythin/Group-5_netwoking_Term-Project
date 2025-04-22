@@ -254,11 +254,12 @@ def checkFilesForSyncUpdates():
                     for syncFile in Classes.g_FilesForSync:
                         if syncFile.fileName == fn:
                             subbedUsers = syncFile.usersSubbed
+                            print(syncFile.fileName)
+                            print(syncFile)
+                            print(Classes.g_FilesForSync)
                             print(subbedUsers)
 
-                    for user in subbedUsers:
-                        if user.username == userAsPeer.username:
-                            subbedUsers.remove(user)
+                    subbedUsers = [user for user in subbedUsers if user.username != userAsPeer.username]
 
                     #with Classes.G_SyncFileLock:
                     print("we're here")
