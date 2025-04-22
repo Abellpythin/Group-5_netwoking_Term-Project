@@ -14,6 +14,7 @@ from Classes import CRequest
 from Classes import SResponse
 from Classes import PeerList
 from Classes import FileForSync
+from Classes import File
 
 import HelperFunctions as hf
 
@@ -318,7 +319,13 @@ def initialConnect():
                 # Turns the json LIST of peerList(the class) into separate peerList(object individually)
                 # objects to be added to G_peerList(global peerlist that holds all the peers)
                 # Yeah I know bad name deal with it or change all uses of it
-                Classes.G_peerList = [Classes.peerList_from_dict(item) for item in json.loads(serverResponse)]
+
+                for (jsonOtherPeerList) in json.loads(serverResponse):
+                    otherPeerList: PeerList = Classes.peerList_from_dict(jsonOtherPeerList)
+                    if tuple(otherPeerList.addr) != (G_MY_IP, G_MY_PORT,):
+                        Classes.G_peerList.append(otherPeerList)
+
+                #Classes.G_peerList = [Classes.peerList_from_dict(item) for item in json.loads(serverResponse)]
 
                 serverResponse = hf.clientSendRequest(peer_socket, CRequest.SendMyFiles)
 
@@ -332,9 +339,10 @@ def initialConnect():
                 # Receive file list
                 fileObjectJsonList = hf.clientSendRequest(peer_socket, CRequest.RequestFileList)
 
-                if fileObjectJsonList:
-                    Classes.G_FileList = [Classes.file_from_dict(file) for file in json.loads(fileObjectJsonList)]
-                    print(Classes.G_FileList)
+                for fileObjectListDict in json.loads(fileObjectJsonList):
+                    fileObject = Classes.file_from_dict(fileObjectListDict)
+                    if tuple(fileObject.addr) != (G_MY_IP, G_MY_PORT):
+                        Classes.G_FileList.append(fileObject)
 
                 """
                 If there are any files currently in FilesForSync, save them into Classes.g_FilesWithSync
