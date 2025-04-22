@@ -372,8 +372,13 @@ class Server:
         return True
 
     def sendSyncFileContent(self, clientSocket: socket):
+
         # Receive Client's wanted SyncFile (File in FilesForSync)
         clientResponse: str = self.serverSendResponse(clientSocket, SResponse.SendWantedFileName)
+
+        # Receive client as a PeerList
+        jsonClientPeerList: str = clientSocket.recv(G_BUFFER).decode()
+        clientPeerList: PeerList = peerList_from_dict(json.loads(jsonClientPeerList))
 
         wantedSyncFile: FileForSync = sync_file_from_dict(json.loads(clientResponse))
 
@@ -388,6 +393,10 @@ class Server:
             clientSocket.send(f"{fileSize}".encode())
 
             with G_SyncFileLock:
+                for syncFile in g_FilesForSync:
+                    if syncFile == wantedSyncFile:
+                        syncFile.usersSubbed.append(clientPeerList)
+
                 with open(filePath, 'rb') as f:
                     while True:
                         data = f.read(1024)

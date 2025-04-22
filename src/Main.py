@@ -205,8 +205,10 @@ def checkFilesForSyncUpdates():
     global g_userWantsToSave
 
     userAsPeer: Peer = Peer((G_MY_IP, G_MY_PORT), G_MY_USERNAME)
+
     # list of dictionaries mapping the filename to their last modification
     fileHash: dict[str:str] = {}
+
     currentDirectory: Path = Path.cwd()
     syncFileDir: Path = currentDirectory.parent / "FilesForSync"
     fileNames: list[str] = hf.list_files_in_directory(syncFileDir)
@@ -237,7 +239,6 @@ def checkFilesForSyncUpdates():
                 continue
 
         if g_userWantsToSave:
-
             # Checks each fileName
             for fn in fileNames:
                 filePath: Path = syncFileDir / fn
@@ -246,22 +247,22 @@ def checkFilesForSyncUpdates():
                 modified: bool = hf.fileHasChanged(filePath, fileHash[fn])
                 print(modified)
                 if modified:
-                    #print(f"{fn} has been modified")
+                    # Update previous hash to current
                     fileHash[fn] = hf.getFileHash(filePath)
 
-                    print("Got here")
                     subbedUsers: list[PeerList] = []
                     for syncFile in Classes.g_FilesForSync:
                         if syncFile.fileName == fn:
                             subbedUsers = syncFile.usersSubbed
+                            print(subbedUsers)
 
                     for user in subbedUsers:
                         if user.username == userAsPeer.username:
                             subbedUsers.remove(user)
 
-                    with Classes.G_SyncFileLock:
-                        print("we're here")
-                        hf.sendFileSyncUpdate(fn, filePath, userAsPeer, subbedUsers)
+                    #with Classes.G_SyncFileLock:
+                    print("we're here")
+                    hf.sendFileSyncUpdate(fn, filePath, userAsPeer, subbedUsers)
 
             g_userWantsToSave = not g_userWantsToSave
 

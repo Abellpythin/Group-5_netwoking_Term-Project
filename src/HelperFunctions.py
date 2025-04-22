@@ -281,6 +281,10 @@ def downloadSubscribedFile(syncFile: FileForSync, userAsPeerList: PeerList) -> N
             jsonSyncFile: str = json.dumps(syncFile.__dict__())
             peer_socket.send(jsonSyncFile.encode())
 
+            # Send the user's information to be added to the server's list of client's subscribed
+            jsonUserAsPeerList: str = json.dumps(userAsPeerList.__dict__())
+            peer_socket.send(jsonUserAsPeerList.encode())
+
             fileSize: int = int(peer_socket.recv(Classes.G_BUFFER).decode())
             print(f"Received Sync File size{fileSize}\n")
             if not fileSize:
@@ -292,14 +296,18 @@ def downloadSubscribedFile(syncFile: FileForSync, userAsPeerList: PeerList) -> N
             os.makedirs(os.path.dirname(directoryPath), exist_ok=True)
 
             receivedSize: int = 0
-            with open(directoryPath, 'wb') as f:
-                while receivedSize < fileSize:
-                    data = peer_socket.recv(Classes.G_BUFFER)
-                    if not data:
-                        break
-                    f.write(data)
-                    print(data)
-                    receivedSize += len(data)
+            with Classes.G_SyncFileLock:
+                for fileSync in Classes.g_FilesForSync:
+                    if syncFile == fileSync:
+                        syncFile.usersSubbed.append(userAsPeerList)
+                with open(directoryPath, 'wb') as f:
+                    while receivedSize < fileSize:
+                        data = peer_socket.recv(Classes.G_BUFFER)
+                        if not data:
+                            break
+                        f.write(data)
+                        print(data)
+                        receivedSize += len(data)
 
         except (TimeoutError, InterruptedError, ConnectionRefusedError) as err:
             print("handleSubscriptionToFile Failed")
@@ -464,7 +472,7 @@ def sendFileSyncUpdate(fileName: str, filePath: Path, userAsPeerList: Peer, user
             while not connectionSuccess:
                 try:
                     peer_socket.settimeout(15)
-                    peer_socket.connect(userToSendTo)
+                    peer_socket.connect(tuple(userToSendTo))
 
                     # Request to send update to server
                     serverResponse: str = clientSendRequest(peer_socket, Classes.CRequest.UpdateSyncFile)
