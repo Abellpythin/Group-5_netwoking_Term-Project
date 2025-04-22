@@ -450,15 +450,6 @@ def sendFileSyncUpdate(fileName: str, filePath: Path, userAsPeerList: Peer, user
     :return:
     """
 
-    # subbedUser: list[PeerList] = []
-    # for syncFile in Classes.g_FilesForSync:
-    #     if syncFile.fileName == fileName:
-    #         subbedUser = syncFile.usersSubbed
-    #
-    # for user in subbedUser:
-    #     if user.username == userAsPeerList.username:
-    #         subbedUser.remove(user)
-
     if not usersToBeSent:
         print("sendFileSyncUpdate 437: No more users to send update to\n")
         return

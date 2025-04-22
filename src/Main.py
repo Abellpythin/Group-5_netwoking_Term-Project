@@ -130,8 +130,8 @@ def runPeer():
                 break
 
             userOption = int(userOption)
-            # This value (4) will change as options get implemented
-            if 1 <= userOption <= 4:
+            # This value (5) will change as options get implemented
+            if 1 <= userOption <= 100:
                 match userOption:
                     case 1:
                         hf.displayAvailablePeers()
@@ -221,6 +221,7 @@ def checkFilesForSyncUpdates():
         fileNames: list[str] = [fn for fn in hf.list_files_in_directory(syncFileDir) if not fn.endswith('~')]
 
         if g_userWantsToSave:
+            print(1)
             # Checks to see if any files have been deleted and deletes them if so
             namesToRemove: list[str] = []
             for fn in fileHash.keys():
@@ -259,7 +260,7 @@ def checkFilesForSyncUpdates():
                         print("we're here")
                         hf.sendFileSyncUpdate(fn, filePath, userAsPeer, subbedUsers)
 
-                    g_userWantsToSave = not g_userWantsToSave
+            g_userWantsToSave = not g_userWantsToSave
 
 
 
