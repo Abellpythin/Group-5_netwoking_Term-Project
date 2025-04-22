@@ -13,7 +13,9 @@ G_BUFFER: int = 4096  # Bytes
 # Ensure that any modifications to these list are used with Lock
 G_peerList: list[PeerList] = []
 G_FileList: list[File] = []
+g_FilesForSync: list[FileForSync] = []
 G_peerListLock: threading.Lock = threading.Lock()
+G_SyncFileLock: threading.Lock = threading.Lock()
 
 
 # Enumerations are used to guarantee consistent strings for communication between sockets
@@ -29,6 +31,9 @@ class CRequest(Enum):
     RequestFile = 3  # To download
     SendMyFiles = 4  # Sends list of File names (Not the contents itself)
     RequestFileList = 5  # Request File list
+    SendMySyncFiles = 6  # Sends List of Files and users subscribed to it
+    SubscribeToFile = 7  # The client will subscribe to file
+    UpdateSyncFile = 8  # This informs the server that the client has updated a file and the server should sync it
 
 
 class SResponse(Enum):
@@ -38,6 +43,7 @@ class SResponse(Enum):
     Connected = 0  # Handles standard connection
     SendYourInfo = 1  # Response when client wants to send info (peerlist, files, etc.)
     SendWantedFileName = 2  # Response when client wants to download file
+
 
 def list_files_in_directory(directory_path) -> list[str]:
     """
@@ -66,6 +72,38 @@ def file_from_dict(fileAsDict):
     return File(**fileAsDict)
 
 
+def sync_file_from_dict(syncFileAsDict):
+    usersSubbed = [peerList_from_dict(u) for u in syncFileAsDict['usersSubbed']]
+    return FileForSync(fileName=syncFileAsDict['fileName'], usersSubbed=usersSubbed)
+
+
+def receiveFileTo(receiving_socket: socket, filePath: Path):
+    """
+    Receive a file from a peer
+    :param receiving_socket:
+    :param filePath:
+    :return:
+    """
+
+    fileSize: int = int(receiving_socket.recv(G_BUFFER).decode())
+    print(f"Function receiveFileTo: Server Received Updated File of Size: {fileSize}")
+
+    # This implies that unless a user explicitly unsubscribes from a folder, they will forever receive updates
+    os.makedirs(os.path.dirname(filePath), exist_ok=True)
+
+    receivedSize: int = 0
+
+    with open(filePath, 'wb') as f:
+        while receivedSize < fileSize:
+            data = receiving_socket.recv(G_BUFFER)
+            if not data:
+                break
+            f.write(data)
+            print(receivedSize, len(data))
+            receivedSize += len(data)
+            print(data)
+
+
 class Peer:
     """
     -Methods that take an address as a parameter AND sends data assumes two things
@@ -88,7 +126,7 @@ class Peer:
 
     def initializeFiles(self) -> None:
         """
-        This function will automaticallu append the user's files in the Files folder to the user's files
+        This function will automatically append the user's files in the Files folder to the user's files
         :return:
         """
 
@@ -122,7 +160,6 @@ class Peer:
         :return: List of peers currently online in network
         """
         global G_peerList
-        global G_peerListLock
         self.socket.send(CRequest.PeerList.name.encode())
 
         # Receive json data containing peerlist data
@@ -206,6 +243,15 @@ class Server:
                     case CRequest.RequestFileList.name:
                         requestsHandled = self.sendFileList(clientSocket)
 
+                    case CRequest.SendMySyncFiles.name:
+                        requestsHandled = self.receiveSyncFileList(clientSocket)
+
+                    case CRequest.SubscribeToFile.name:
+                        requestsHandled = self.sendSyncFileContent(clientSocket)
+
+                    case CRequest.UpdateSyncFile.name:
+                        requestsHandled = self.update_send_fileUpdate(clientSocket)
+
                     case _:
                         requestsHandled = False
 
@@ -215,6 +261,7 @@ class Server:
                 except TimeoutError as e:
                     # If we timeout then good, the while loop will simply end
                     # The socket timeout is equivalent to the function timer so no worries
+                    print(f"Client took too long. Tell them hurry up")
                     continue
 
                 endTime = time.time()
@@ -228,7 +275,6 @@ class Server:
         :param clientSocket:
         :return:
         """
-        global G_peerListLock
         # Ask client to Send their PeerList describing themselves
         # Receive client's PeerList object describing themselves
         clientResponse: str = self.serverSendResponse(clientSocket, SResponse.SendYourInfo)
@@ -268,6 +314,13 @@ class Server:
         clientSocket.send(json_data.encode())
         return True
 
+    def sendSyncFileList(self, clientSocket: socket):
+
+        with G_SyncFileLock:
+            json_data: str = json.dumps([fs.__dict__() for fs in g_FilesForSync])
+
+            clientSocket.send(json_data.encode())
+
     def confirmConnection(self, clientSocket: socket) -> bool:
         success: bool = True
         try:
@@ -302,14 +355,12 @@ class Server:
 
         if wantedFile.fileName in fileNames:
             filePath: Path = parent_of_parent_directory / wantedFile.fileName
-            fpString = str(filePath)
             fileSize: int = os.stat(str(filePath)).st_size
-            print(filePath)
 
             # Path does exist
-            print(os.path.exists(filePath))
+            #print(os.path.exists(filePath))
             clientSocket.send(f"{fileSize}".encode())
-            print(f"Sent file size {fileSize}\n")
+            #print(f"Sent file size {fileSize}\n")
 
             with open(filePath, 'rb') as f:
                 while True:
@@ -319,6 +370,79 @@ class Server:
                     clientSocket.sendall(data)
 
         return True
+
+    def sendSyncFileContent(self, clientSocket: socket):
+
+        # Receive Client's wanted SyncFile (File in FilesForSync)
+        clientResponse: str = self.serverSendResponse(clientSocket, SResponse.SendWantedFileName)
+
+        # Receive client as a PeerList
+        jsonClientPeerList: str = clientSocket.recv(G_BUFFER).decode()
+        clientPeerList: PeerList = peerList_from_dict(json.loads(jsonClientPeerList))
+
+        wantedSyncFile: FileForSync = sync_file_from_dict(json.loads(clientResponse))
+
+        currentDirectory: Path = Path.cwd()
+        syncFilePath: Path = currentDirectory.parent / "FilesForSync/"
+
+        fileNames: list[str] = list_files_in_directory(syncFilePath)
+
+        if wantedSyncFile.fileName in fileNames:
+            filePath: Path = syncFilePath / wantedSyncFile.fileName
+            fileSize: int = os.stat(str(filePath)).st_size
+            clientSocket.send(f"{fileSize}".encode())
+
+            with G_SyncFileLock:
+                for syncFile in g_FilesForSync:
+                    if syncFile == wantedSyncFile:
+                        syncFile.usersSubbed.append(clientPeerList)
+
+                with open(filePath, 'rb') as f:
+                    while True:
+                        data = f.read(1024)
+                        if not data:
+                            break
+                        clientSocket.sendall(data)
+
+        return True
+
+    def update_send_fileUpdate(self, clientSocket: socket) -> bool:
+        """
+        This method will receive the fileUpdate from the client, update OR append it to this user's file, then send it
+        to the next user
+        :param clientSocket:
+        :return:
+        """
+
+        with G_SyncFileLock:
+            # What if clientResponse is empty?
+            sendStr: str = SResponse.SendYourInfo.name
+            clientSocket.send(sendStr.encode())
+
+            fileName: str = clientSocket.recv(G_BUFFER).decode()
+
+            # Receive a list of users who need the update
+            jsonUsersToBeSent: str = clientSocket.recv(G_BUFFER).decode()
+
+            # If empty then move on
+            usersToBeSent: list[PeerList] = []
+            if jsonUsersToBeSent:
+                usersToBeSent = [peerList_from_dict(item) for item in json.loads(jsonUsersToBeSent)]
+
+            currentDirectory: Path = Path.cwd()
+            filePath: Path = currentDirectory.parent / "FilesForSync" / fileName
+
+            receiveFileTo(clientSocket, filePath)
+
+            for user in usersToBeSent:
+                if user.username == self.userName:
+                    usersToBeSent.remove(user)
+            print("Server Line 427: I got the update")
+
+            sendFileSyncUpdate(fileName, filePath, Peer(self.address, self.userName), usersToBeSent)
+
+        return True
+
 
     def receiveRequestedFiles(self, clientSocket: socket) -> bool:
         """
@@ -332,7 +456,29 @@ class Server:
         if clientResponse:
             G_FileList.extend([file_from_dict(item) for item in json.loads(clientResponse)])
         else:
-            print("Classes 363: File list client sent was empty")
+            print("Classes 342: File list client sent was empty")
+
+        return True
+
+    def receiveSyncFileList(self, clientSocket: socket) -> bool:
+        """
+        This will receive the client's FilesForSync directory
+        :param clientSocket:
+        :return:
+        """
+        clientResponse: str = self.serverSendResponse(clientSocket, SResponse.SendYourInfo)
+
+        if clientResponse:
+
+            for fileSyncObj in [sync_file_from_dict(item) for item in json.loads(clientResponse)]:
+                if not any(fs.fileName == fileSyncObj.fileName for fs in g_FilesForSync):
+                    g_FilesForSync.append(fileSyncObj)
+
+            jsonFilesForSync: str = json.dumps([fs.__dict__() for fs in g_FilesForSync])
+            clientSocket.send(jsonFilesForSync.encode())
+
+        else:
+            print("Classes 358: FilesForSync is empty.")
 
         return True
 
@@ -374,6 +520,18 @@ class File:
         return(self.fileName, self.userName, self.addr) == (other.fileName, other.userName, other.addr)
 
 
+class FileForSync:
+    def __init__(self, fileName: str, usersSubbed: list[PeerList]):
+        self.fileName: str = fileName
+        self.usersSubbed: list[PeerList] = usersSubbed
+
+    def __dict__(self):
+        return {'fileName': self.fileName, 'usersSubbed': [us.__dict__() for us in self.usersSubbed]}
+
+    def __eq__(self, other: FileForSync):
+        return (self.fileName, self.usersSubbed) == (other.fileName, other.usersSubbed)
+
+
 class PeerList:
     """
     This class is used to send peer information to the clients. Peer is used locally, PeerList is used
@@ -393,5 +551,100 @@ class PeerList:
     def __eq__(self, other: PeerList):
         return (self.addr, self.username) == (other.addr, other.username)
 
+
+"""
+Just leaving this comment to say circular imports are dumb and so is Python. That's why these methods needs to pasted
+Into this file
+"""
+
+
+def sendFileSyncUpdate(fileName: str, filePath: Path, userAsPeerList: Peer, usersToBeSent: list[PeerList]):
+    """
+    Whenever a file in the FilesForSync directory is updated, this method will be called to send the update to the server
+
+    :param fileName:
+    :param filePath:
+    :param userAsPeerList:
+    :param usersToBeSent: A list of users that need to be sent the update.
+    :return:
+    """
+
+
+
+    if not usersToBeSent:
+        print("sendFileSyncUpdate 437: No more users to send update to\n")
+        return
+
+    userToSendTo: tuple[str, int] = usersToBeSent.pop(0).addr
+
+    # Acquire Lock to ensure nothing else edits data while sending
+    with G_SyncFileLock:
+        with userAsPeerList.createTCPSocket() as peer_socket:
+            connectionSuccess: bool = False
+
+            while not connectionSuccess:
+                try:
+                    peer_socket.settimeout(15)
+                    peer_socket.connect(userToSendTo)
+
+                    # Request to send update to server
+                    serverResponse: str = clientSendRequest(peer_socket, CRequest.UpdateSyncFile)
+
+                    if serverResponse != SResponse.SendYourInfo.name:
+                        raise Exception("Main Line 275: Server is not ready to receive File Sync Update")
+
+                    peer_socket.send(fileName.encode())
+
+                    # Send the users that still need the update
+                    jsonUsersToBeSent: str = json.dumps([user.__dict__() for user in usersToBeSent])
+                    peer_socket.send(jsonUsersToBeSent.encode())
+
+                    sendFileTo(peer_socket, filePath)
+
+                    connectionSuccess = not connectionSuccess
+
+                except (TimeoutError, InterruptedError, ConnectionRefusedError) as err:
+                    print("File Sync Update connection did not go through. Check the Client IP and Port")
+                    userSocket.close()
+                    userSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    pass
+
+
+def clientSendRequest(peer_socket: socket, cRequest: CRequest | int) -> str:
+    """
+    Sends a request to a server
+    :param peer_socket:
+    :param cRequest:
+    :return: String representing Server response
+    """
+    sendStr: cRequest = cRequest.name
+    peer_socket.send(sendStr.encode())
+    return peer_socket.recv(G_BUFFER).decode()
+
+
+def sendFileTo(sending_socket: socket, filePath: Path):
+    """
+    This method will send a file to some place
+    :return:
+    """
+
+    fileSize: int = os.stat(str(filePath)).st_size
+
+    # Debugging ------------
+    if fileSize == 0:
+        raise Exception("fileSize is 0 check your stuff")
+    # ----------------
+
+    sending_socket.send(f"{fileSize}".encode())
+
+    with open(filePath, 'rb') as f:
+        while True:
+            data = f.read(G_BUFFER)
+            if not data:
+                break
+            sending_socket.sendall(data)
+
 # For future security it MIGHT be useful to make methods that check the ip address
 # Files and peer list should be separate. They can always be combined but separating is much harder
+
+

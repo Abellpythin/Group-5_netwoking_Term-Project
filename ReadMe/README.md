@@ -61,6 +61,9 @@ python version 3.12
 > select a client to send this save to. The peer who receives this update also 
 > receives the list minus the peer who sent them the update. This will continue until
 > the list is empty and the last peer receives the update
+> 
+> Subscribable files must have a size greater than 0. txt files with no content have a
+> size of 0 and are considered empty
 
 ### Computer Networking Term Project 
 ![img.png](img.png)

@@ -1,9 +1,11 @@
 from __future__ import annotations
 import json
+import os.path
 import queue
 import threading
+from pathlib import Path
 import socket  # For type annotation
-import time # for debugging
+import time
 
 import Classes  # Classes.G_peerList
 from Classes import Peer
@@ -11,11 +13,9 @@ from Classes import Server
 from Classes import CRequest
 from Classes import SResponse
 from Classes import PeerList
+from Classes import FileForSync
 
 import HelperFunctions as hf
-
-#!!!!!! Use 127.0.0.1 for debugging NOT 0.0.0.0
-
 
 # Use your systems local IP address (IPV4 when typing ipconfig pn windows, env0 on mac)
 
@@ -25,15 +25,20 @@ import HelperFunctions as hf
 G_MY_PORT: int = 59878
 G_MY_IP: str = ''
 G_MY_USERNAME: str | None = "Debugger"
-G_MAX_CONNECTIONS: int = 5
+G_MAX_CONNECTIONS: int = 3
 
 g_serverIp: str | None
 g_serverPort: int | None
+
+# G_FILE_SYNC_CHECK: int = 15  # The interval in seconds each file in FileForSync is checked for changes
+g_userWantsToSave: bool = False
 
 
 # When the user wants to end the program this variable changes to True and
 # runClient, runServer, and Main terminate
 G_ENDPROGRAM: bool = False
+
+
 
 # Queue necessary for I/O operations
 G_input_queue: queue.Queue = queue.Queue()
@@ -69,11 +74,16 @@ def main():
 
     initialConnect()
 
+    # Start
+    fileSyncThread: threading.Thread = threading.Thread(target=checkFilesForSyncUpdates, daemon=True)
+    fileSyncThread.start()
+
     peerThread: threading.Thread = threading.Thread(target=runPeer, daemon=True)
     peerThread.start()
 
     # Main will not conclude until both threads join so no need for infinite while loop
     serverThread.join()
+    fileSyncThread.join()
     peerThread.join()
 
     print("Complete!")
@@ -89,9 +99,10 @@ def runPeer():
     4. Refresh PeerList
     """
     global G_ENDPROGRAM
+    global g_userWantsToSave
 
     #Debugging
-    time.sleep(0.5)
+    #time.sleep(0.5)
 
     userOption: int | chr
 
@@ -103,6 +114,8 @@ def runPeer():
             print("1. View Available Peers in Network\n"  # No direct functionality needed
                   "2. View Available Files in Network\n"  # From 2. The user can select and download this file
                   "3. Download Available File\n"
+                  "4. List files available for subscription (file syncing service)\n"
+                  "5. Save Subscribed File (Click this if you've edited a file in FilesForSync)\n"
                   "n. Refresh PeerList (not implemented)\n"
                   "Press . to exit")
             userOption = input()
@@ -117,8 +130,8 @@ def runPeer():
                 break
 
             userOption = int(userOption)
-            # This value (4) will change as options get implemented
-            if 1 <= userOption <= 4:
+            # This value (5) will change as options get implemented
+            if 1 <= userOption <= 100:
                 match userOption:
                     case 1:
                         hf.displayAvailablePeers()
@@ -128,7 +141,10 @@ def runPeer():
                         hf.handleDownloadFileRequest((G_MY_IP, G_MY_PORT),
                                                      (g_serverIp, g_serverPort))
                     case 4:
-                        pass
+                        hf.handleSubscriptionToFile(PeerList((G_MY_IP, G_MY_PORT), G_MY_USERNAME))
+
+                    case 5:
+                        g_userWantsToSave = True
                     case _:
                         raise ValueError("runPeer match statement: Something seriously went wrong to get here")
             else:
@@ -180,6 +196,79 @@ def runServer():
             thread.join()
 
 
+def checkFilesForSyncUpdates():
+    """
+    This function is run on a thread. It will iteratively check each file every x amount of seconds in the FilesForSync
+    directory and if any users are subscribed to the file, it will send the update to them automatically
+    :return:
+    """
+    global g_userWantsToSave
+
+    userAsPeer: Peer = Peer((G_MY_IP, G_MY_PORT), G_MY_USERNAME)
+
+    # list of dictionaries mapping the filename to their last modification
+    fileHash: dict[str:str] = {}
+
+    currentDirectory: Path = Path.cwd()
+    syncFileDir: Path = currentDirectory.parent / "FilesForSync"
+    fileNames: list[str] = hf.list_files_in_directory(syncFileDir)
+
+    for fn in fileNames:
+        fileHash[fn] = hf.getFileHash(syncFileDir / fn)
+
+    while not G_ENDPROGRAM:
+        # constantly update fileNames to keep track
+        # When updating, text editors and IDE's often save backups using ~ at the end of the file. This filters those
+        # out
+        fileNames: list[str] = [fn for fn in hf.list_files_in_directory(syncFileDir) if not fn.endswith('~')]
+
+        # Checks to see if any files have been deleted and deletes them if so
+        namesToRemove: list[str] = []
+        for fn in fileHash.keys():
+            if fn not in fileNames:
+                print(fn)
+                namesToRemove.append(fn)
+        for name in namesToRemove:
+            fileHash.pop(name)
+
+        for fn in fileNames:
+            # If a new file is added, add it to the hash
+            if (fn not in fileHash) and os.path.exists(syncFileDir / fn):
+                fileHash[fn] = hf.getFileHash(syncFileDir / fn)
+                print(fn)
+                continue
+
+        if g_userWantsToSave:
+            # Checks each fileName
+            for fn in fileNames:
+                filePath: Path = syncFileDir / fn
+
+                # Check to see if the file has been modified
+                modified: bool = hf.fileHasChanged(filePath, fileHash[fn])
+                print(modified)
+                if modified:
+                    # Update previous hash to current
+                    fileHash[fn] = hf.getFileHash(filePath)
+
+                    subbedUsers: list[PeerList] = []
+                    for syncFile in Classes.g_FilesForSync:
+                        if syncFile.fileName == fn:
+                            subbedUsers = syncFile.usersSubbed
+                            print(syncFile.fileName)
+                            print(syncFile)
+                            print(Classes.g_FilesForSync)
+                            print(subbedUsers)
+
+                    subbedUsers = [user for user in subbedUsers if user.username != userAsPeer.username]
+
+                    #with Classes.G_SyncFileLock:
+                    print("we're here")
+                    hf.sendFileSyncUpdate(fn, filePath, userAsPeer, subbedUsers)
+
+            g_userWantsToSave = not g_userWantsToSave
+
+
+
 def initialConnect():
     """
     The initial Connection will connect to a peer currently online. This method handles updating the global peer list
@@ -214,13 +303,13 @@ def initialConnect():
 
                 # For future error implementation
                 if serverResponse != SResponse.Connected.name:
-                    raise Exception("Something went wrong")
+                    raise Exception("Server is not ready to be connected")
 
                 # Sends a second request asking to add this user into the peer network
                 serverResponse = hf.clientSendRequest(peer_socket, CRequest.AddMe)
 
                 if serverResponse != SResponse.SendYourInfo.name:
-                    raise Exception("Something went wrong")
+                    raise Exception("Server is not ready to add me")
 
                 # Sends the user's info to be added to peer list
                 jsonUserPeer: str = json.dumps(userPeer.__dict__())
@@ -237,7 +326,7 @@ def initialConnect():
                 serverResponse = hf.clientSendRequest(peer_socket, CRequest.SendMyFiles)
 
                 if serverResponse != SResponse.SendYourInfo.name:
-                    raise Exception("Something went wrong")
+                    raise Exception("Server is not ready to receive my peerList")
 
                 fileJsonList: str = json.dumps([file.__dict__() for file in selfPeer.files])
 
@@ -246,7 +335,35 @@ def initialConnect():
                 # Receive file list
                 fileObjectJsonList = hf.clientSendRequest(peer_socket, CRequest.RequestFileList)
 
-                Classes.G_FileList = [Classes.file_from_dict(file) for file in json.loads(fileObjectJsonList)]
+                if fileObjectJsonList:
+                    Classes.G_FileList = [Classes.file_from_dict(file) for file in json.loads(fileObjectJsonList)]
+                    print(Classes.G_FileList)
+
+                """
+                If there are any files currently in FilesForSync, save them into Classes.g_FilesWithSync
+                Subscriptions happen on a session basis meaning the program doesn't remember who's subscribed after they
+                leave
+                """
+                hf.setInitialFilesForSync((G_MY_IP, G_MY_PORT), G_MY_USERNAME)
+
+                serverResponse = hf.clientSendRequest(peer_socket, CRequest.SendMySyncFiles)
+
+                if serverResponse != SResponse.SendYourInfo.name:
+                    raise Exception("Server is not ready to receive my FilesForSync")
+
+                # Create and send json string
+                jsonFilesForSync: str = json.dumps([fs.__dict__() for fs in Classes.g_FilesForSync])
+
+                peer_socket.send(jsonFilesForSync.encode())
+
+                # Receives the server's sync list
+                serverFileSyncList = peer_socket.recv(Classes.G_BUFFER).decode()
+
+                # Adds server's File Sync List if not already in user's File Sync List
+                for fileSyncObj in [hf.sync_file_from_dict(item) for item in json.loads(serverFileSyncList)]:
+                    if not any(fs.fileName == fileSyncObj.fileName for fs in Classes.g_FilesForSync):
+                        print(Classes.g_FilesForSync)
+                        Classes.g_FilesForSync.append(fileSyncObj)
 
                 connectionSuccess = not connectionSuccess
 

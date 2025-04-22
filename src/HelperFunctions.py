@@ -1,10 +1,53 @@
+from __future__ import annotations
+
 import os
 import socket
 import json
+import hashlib
+import time
 from pathlib import Path
 
 import Classes
 from Classes import Peer
+from Classes import FileForSync
+from Classes import PeerList
+
+
+def peerList_from_dict(peerAsDict):
+    """
+    Unpacks Json serialization of PeerList (not to be mistaken with G_PeerList)
+    :param peerAsDict:
+    :return:
+    """
+    return PeerList(**peerAsDict)
+
+
+def sync_file_from_dict(syncFileAsDict):
+    usersSubbed = [peerList_from_dict(u) for u in syncFileAsDict['usersSubbed']]
+    return FileForSync(fileName=syncFileAsDict['fileName'], usersSubbed=usersSubbed)
+
+
+def sendFileTo(sending_socket: socket, filePath: Path):
+    """
+    This method will send a file to some place
+    :return:
+    """
+
+    fileSize: int = os.stat(str(filePath)).st_size
+
+    # Debugging ------------
+    if fileSize == 0:
+        raise Exception("fileSize is 0 check your stuff")
+    # ----------------
+
+    sending_socket.send(f"{fileSize}".encode())
+
+    with open(filePath, 'rb') as f:
+        while True:
+            data = f.read(Classes.G_BUFFER)
+            if not data:
+                break
+            sending_socket.sendall(data)
 
 
 def clientSendRequest(peer_socket: socket, cRequest: Classes.CRequest | int) -> str:
@@ -95,6 +138,7 @@ def waitForSecondConnection() -> None:
 
     while True:
         start: str = input().lower()
+        print()
         if(start == 'n'):
             break
         else:
@@ -170,6 +214,7 @@ def displayAvailablePeers() -> None:
 
     return
 
+
 def displayAvailableFiles() -> None:
     """
     Displays the available files to download for the user
@@ -177,20 +222,102 @@ def displayAvailableFiles() -> None:
     """
     counter: int = 1
     for file in Classes.G_FileList:
-        print(f"| Name: {file.fileName}\n"
+        print(f"|{counter}. file name: {file.fileName}\n"
               # Preferably we want files to have owners
-              f"| Owner: {file.userName if file.userName else "No owner"}\n"
+              f"|   Owner: {file.userName if file.userName else "No owner"}\n"
               # Location should never be unknown. How else would you get the file
-              f"| Address: {file.addr if file.addr else "Location Unknown"}\n")
+              f"|   Address: {file.addr if file.addr else "Location Unknown"}\n")
         counter += 1
     userPressesPeriod()
 
-    return
+
+def handleSubscriptionToFile(userAsPeerList: PeerList) -> None:
+    """
+    Display Available Files to Subscribe to. Does not include files the user is already subbed to.
+    :param userAsPeerList:
+    :return:
+    """
+    counter: int = 1
+    for file in Classes.g_FilesForSync:
+        print(f"| {counter}. File name: {file.fileName}")
+        print(f"|   Users Subscribed:")
+        for user in file.usersSubbed:
+            print(f"| - {user.username}")
+        counter += 1
+
+    userSyncFileChoice: FileForSync | None = None
+    userChoice: int | str | None = None
+
+    while True:
+        userChoice = input("Select the number of the file you want to subscribe to or press . to go back: ")
+        print()
+        if userChoice.isdigit():
+            userChoice = int(userChoice) - 1
+            if 0 <= userChoice <= (len(Classes.g_FilesForSync) - 1):
+                userSyncFileChoice = Classes.g_FilesForSync[userChoice]
+                break
+        elif userChoice == '.':
+            return
+        print("Please enter a valid input.")
+
+    downloadSubscribedFile(userSyncFileChoice, userAsPeerList)
+    print("File successfully downloaded")
+    print("Stop the program to see your download\n")
+
+
+def downloadSubscribedFile(syncFile: FileForSync, userAsPeerList: PeerList) -> None:
+    selfPeer: Peer = Peer(userAsPeerList.addr)
+
+    with selfPeer.createTCPSocket() as peer_socket:
+        try:
+            print(syncFile.usersSubbed[0].addr)
+            # This is a list most likely due to json conversion
+            peer_socket.connect(tuple(syncFile.usersSubbed[0].addr))
+            peer_socket.settimeout(120)
+
+            serverResponse: str = clientSendRequest(peer_socket, Classes.CRequest.SubscribeToFile)
+            if serverResponse != Classes.SResponse.SendWantedFileName.name:
+                raise Exception("Subscribing to file failed in downloadSubscribedFile() HelperFunctions.py")
+
+            jsonSyncFile: str = json.dumps(syncFile.__dict__())
+            peer_socket.send(jsonSyncFile.encode())
+
+            # Send the user's information to be added to the server's list of client's subscribed
+            jsonUserAsPeerList: str = json.dumps(userAsPeerList.__dict__())
+            peer_socket.send(jsonUserAsPeerList.encode())
+
+            fileSize: int = int(peer_socket.recv(Classes.G_BUFFER).decode())
+            print(f"Received Sync File size{fileSize}\n")
+            if not fileSize:
+                raise FileNotFoundError("MakeSure File is openable")
+
+            currentDirectory: Path = Path.cwd()
+            directoryPath: Path = currentDirectory.parent / "FilesForSync" / syncFile.fileName
+
+            os.makedirs(os.path.dirname(directoryPath), exist_ok=True)
+
+            receivedSize: int = 0
+            with Classes.G_SyncFileLock:
+                for fileSync in Classes.g_FilesForSync:
+                    if syncFile == fileSync:
+                        syncFile.usersSubbed.append(userAsPeerList)
+                with open(directoryPath, 'wb') as f:
+                    while receivedSize < fileSize:
+                        data = peer_socket.recv(Classes.G_BUFFER)
+                        if not data:
+                            break
+                        f.write(data)
+                        print(data)
+                        receivedSize += len(data)
+
+        except (TimeoutError, InterruptedError, ConnectionRefusedError) as err:
+            print("handleSubscriptionToFile Failed")
+            print(err)
 
 
 def handleDownloadFileRequest(clientAddress: tuple[str, int], serverAddress: tuple[str, int]):
     """
-    TODO: Check to see if file is already downloaded
+    This functions allows the user to select what file they wish to download from the p2p network
     :param clientAddress:
     :param serverAddress:
     :return:
@@ -199,22 +326,24 @@ def handleDownloadFileRequest(clientAddress: tuple[str, int], serverAddress: tup
     for file in Classes.G_FileList:
         print(f"|{counter}. Name: {file.fileName}\n"
               # Preferably we want files to have owners
-              f"|           Owner: {file.userName if file.userName else "No owner"}\n"
+              f"|   Owner: {file.userName if file.userName else "No owner"}\n"
               # Location should never be unknown. How else would you get the file
-              f"|           Address: {file.addr if file.addr else "Location Unknown"}\n")
+              f"|   Address: {file.addr if file.addr else "Location Unknown"}\n")
         counter += 1
     print()
 
-    userFileChoice: Classes.File
-    userChoice: str | int  # The number they picked
+    userFileChoice: Classes.File | None = None
+    userChoice: str | int = ""  # The number they picked
     while True:
-        userChoice = input("Select the number of the file you want to download: ")
+        userChoice = input("Select the number of the file you want to download or press . to go back: ")
         print()
         if userChoice.isdigit():
             userChoice = int(userChoice) - 1
             if 0 <= userChoice <= (len(Classes.G_FileList) - 1):
                 userFileChoice = Classes.G_FileList[userChoice]
                 break
+        elif userChoice == '.':
+            return
         print("Please enter a valid input.\n")
 
     downloadFile(userFileChoice, clientAddress, serverAddress)
@@ -224,7 +353,8 @@ def handleDownloadFileRequest(clientAddress: tuple[str, int], serverAddress: tup
 
 def downloadFile(file: Classes.File, clientAddress: tuple[str, int], serverAddress: tuple[str, int]) -> None:
     """
-    Thus methid
+    Ths method is responsible for sending and receiving the requested file for the user.
+
     :param file: The file object that the user wants to download which contains who has it
     :param clientAddress: The client's address to make a socket for
     :param serverAddress: This is for knowing where to send the request to
@@ -278,3 +408,99 @@ def downloadFile(file: Classes.File, clientAddress: tuple[str, int], serverAddre
         except (TimeoutError, InterruptedError, ConnectionRefusedError) as err:
             print(err)
             print("Connection did not go through. Check the Client IP and Port")
+            peer_socket.close()
+
+
+def setInitialFilesForSync(userAddr: tuple[str, int], userName: str) -> None:
+    currentDirectory: Path = Path.cwd()
+    parent_of_parent_directory: Path = currentDirectory.parent / "FilesForSync"
+    fileNames: list[str] = list_files_in_directory(parent_of_parent_directory)
+
+    fileForSyncObjList: list[FileForSync] = []
+    thisUser: PeerList = PeerList(userAddr, userName)
+
+    # Initially only this user is subscribed to the folder
+    for fn in fileNames:
+        Classes.g_FilesForSync.append(FileForSync(fn, [thisUser]))
+
+
+def getFileHash(filePath: Path) -> str:
+    hasher: hash = hashlib.md5()
+    with open(filePath, 'rb') as file:
+        while True:
+            data = file.read(Classes.G_BUFFER)
+            if not data:
+                break
+            hasher.update(data)
+    return hasher.hexdigest()
+
+
+def fileHasChanged(filePath: Path, previousHash: str) -> bool:
+    """
+    This method checks to see if the file has changed in the directory
+    :param filePath:
+    :param previousHash:
+    :return:
+    """
+    currentHash: str = getFileHash(filePath)
+    if currentHash != previousHash:
+        return True
+    return False
+
+
+def sendFileSyncUpdate(fileName: str, filePath: Path, userAsPeerList: Peer, usersToBeSent: list[PeerList]):
+    """
+    Whenever a file in the FilesForSync directory is updated, this method will be called to send the update to the server
+
+    :param fileName:
+    :param filePath:
+    :param userAsPeerList:
+    :param usersToBeSent: A list of users that need to be sent the update.
+    :return:
+    """
+
+    if not usersToBeSent:
+        return
+
+    userToSendTo: tuple[str, int] = usersToBeSent.pop(0).addr
+
+    # Acquire Lock to ensure nothing else edits data while sending
+    with Classes.G_SyncFileLock:
+        with userAsPeerList.createTCPSocket() as peer_socket:
+            connectionSuccess: bool = False
+
+            while not connectionSuccess:
+                try:
+                    peer_socket.settimeout(15)
+                    peer_socket.connect(tuple(userToSendTo))
+
+                    # Request to send update to server
+                    serverResponse: str = clientSendRequest(peer_socket, Classes.CRequest.UpdateSyncFile)
+
+                    if serverResponse != Classes.SResponse.SendYourInfo.name:
+                        raise Exception("Main Line 275: Server is not ready to receive File Sync Update")
+
+                    peer_socket.send(fileName.encode())
+
+                    # Send the users that still need the update
+                    jsonUsersToBeSent: str = json.dumps([user.__dict__() for user in usersToBeSent])
+                    print(f"Before sending Users who need it send: {usersToBeSent}")
+                    peer_socket.send(jsonUsersToBeSent.encode())
+
+                    #Optimize later I can't be bothered
+                    time.sleep(0.5)
+
+                    sendFileTo(peer_socket, filePath)
+
+                    print("Update sent")
+                    connectionSuccess = not connectionSuccess
+
+                except (TimeoutError, InterruptedError, ConnectionRefusedError) as err:
+                    print("File Sync Update connection did not go through. Check the Client IP and Port")
+                    userSocket.close()
+                    userSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    pass
+
+
+
+
