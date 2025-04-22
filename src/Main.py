@@ -219,30 +219,33 @@ def checkFilesForSyncUpdates():
         # When updating, text editors and IDE's often save backups using ~ at the end of the file. This filters those
         # out
         fileNames: list[str] = [fn for fn in hf.list_files_in_directory(syncFileDir) if not fn.endswith('~')]
-        # Checks to see if any files have been deleted and deletes them if so
-        namesToRemove: list[str] = []
-        for fn in fileHash.keys():
-            if fn not in fileNames:
-                print(fn)
-                namesToRemove.append(fn)
 
-        for name in namesToRemove:
-            fileHash.pop(name)
+        if g_userWantsToSave:
+            # Checks to see if any files have been deleted and deletes them if so
+            namesToRemove: list[str] = []
+            for fn in fileHash.keys():
+                if fn not in fileNames:
+                    print(fn)
+                    namesToRemove.append(fn)
+            for name in namesToRemove:
+                fileHash.pop(name)
 
-        # Checks each fileName
-        for fn in fileNames:
-            filePath: Path = syncFileDir / fn
-            if (fn not in fileHash) and os.path.exists(filePath):
-                fileHash[fn] = hf.getFileHash(filePath)
-                continue
+            # Checks each fileName
+            for fn in fileNames:
+                filePath: Path = syncFileDir / fn
 
-            # Check to see if the file has been modified
-            modified: bool = hf.fileHasChanged(filePath, fileHash[fn])
-            if modified:
-                #print(f"{fn} has been modified")
-                fileHash[fn] = hf.getFileHash(filePath)
+                # If a new file is added, add it to the hash
+                if (fn not in fileHash) and os.path.exists(filePath):
+                    fileHash[fn] = hf.getFileHash(filePath)
+                    continue
 
-                if g_userWantsToSave:
+                # Check to see if the file has been modified
+                modified: bool = hf.fileHasChanged(filePath, fileHash[fn])
+                if modified:
+                    #print(f"{fn} has been modified")
+                    fileHash[fn] = hf.getFileHash(filePath)
+
+                    print("Got here")
                     subbedUsers: list[PeerList] = []
                     for syncFile in Classes.g_FilesForSync:
                         if syncFile.fileName == fn:
@@ -255,6 +258,7 @@ def checkFilesForSyncUpdates():
                     with Classes.G_SyncFileLock:
                         print("we're here")
                         hf.sendFileSyncUpdate(fn, filePath, userAsPeer, subbedUsers)
+
                     g_userWantsToSave = not g_userWantsToSave
 
 
