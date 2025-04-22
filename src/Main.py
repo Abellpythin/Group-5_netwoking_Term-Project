@@ -16,9 +16,6 @@ from Classes import FileForSync
 
 import HelperFunctions as hf
 
-#!!!!!! Use 127.0.0.1 for debugging NOT 0.0.0.0
-
-
 # Use your systems local IP address (IPV4 when typing ipconfig pn windows, env0 on mac)
 
 
@@ -33,11 +30,14 @@ g_serverIp: str | None
 g_serverPort: int | None
 
 # G_FILE_SYNC_CHECK: int = 15  # The interval in seconds each file in FileForSync is checked for changes
+g_userWantsToSave: bool = False
 
 
 # When the user wants to end the program this variable changes to True and
 # runClient, runServer, and Main terminate
 G_ENDPROGRAM: bool = False
+
+
 
 # Queue necessary for I/O operations
 G_input_queue: queue.Queue = queue.Queue()
@@ -98,6 +98,7 @@ def runPeer():
     4. Refresh PeerList
     """
     global G_ENDPROGRAM
+    global g_userWantsToSave
 
     #Debugging
     #time.sleep(0.5)
@@ -140,6 +141,9 @@ def runPeer():
                                                      (g_serverIp, g_serverPort))
                     case 4:
                         hf.handleSubscriptionToFile(PeerList((G_MY_IP, G_MY_PORT), G_MY_USERNAME))
+
+                    case 5:
+                        g_userWantsToSave = True
                     case _:
                         raise ValueError("runPeer match statement: Something seriously went wrong to get here")
             else:
@@ -191,13 +195,15 @@ def runServer():
             thread.join()
 
 
-def checkFilesForSyncUpdates(needsToBeSent: list[PeerList]):
+def checkFilesForSyncUpdates():
     """
     This function is run on a thread. It will iteratively check each file every x amount of seconds in the FilesForSync
     directory and if any users are subscribed to the file, it will send the update to them automatically
     :return:
     """
+    global g_userWantsToSave
 
+    userAsPeer: Peer = Peer((G_MY_IP, G_MY_PORT), G_MY_USERNAME)
     # list of dictionaries mapping the filename to their last modification
     fileHash: dict[str:str] = {}
     currentDirectory: Path = Path.cwd()
@@ -207,31 +213,40 @@ def checkFilesForSyncUpdates(needsToBeSent: list[PeerList]):
     for fn in fileNames:
         fileHash[fn] = hf.getFileHash(syncFileDir / fn)
 
-    # If new file not in dict, add it with an initial time of 0
-    # Do not send update to this (the current/the one who updated the file) user (obviously)
+    while not G_ENDPROGRAM:
+        # constantly update fileNames to keep track
+        fileNames: list[str] = hf.list_files_in_directory(syncFileDir)
+        # Checks to see if any files have been deleted and deletes them if so
+        for fn in fileHash.keys():
+            if fn not in fileNames:
+                fileHash.pop(fn)
 
-    # Update fileNames to ensure
-    fileNames: list[str] = hf.list_files_in_directory(syncFileDir)
+        # Checks each fileName
+        for fn in fileNames:
+            filePath: Path = syncFileDir / fn
+            if fn not in fileHash:
+                fileHash[fn] = hf.getFileHash(filePath)
+                continue
 
-    # Checks to see if any files have been deleted and deletes them if so
-    for fn in fileHash.keys():
-        if fn not in fileNames:
-            fileHash.pop(fn)
+            # Check to see if the file has been modified
+            modified: bool = hf.fileHasChanged(filePath, fileHash[fn])
+            if modified:
+                print(f"{fn} has been modified")
+                fileHash[fn] = hf.getFileHash(filePath)
 
-    for fn in fileNames:
-        filePath: Path = syncFileDir / fn
-        if fn not in fileHash:
-            fileHash[fn] = hf.getFileHash(filePath)
-            continue
+                if g_userWantsToSave:
+                    subbedUsers: list[PeerList] = []
+                    for syncFile in Classes.g_FilesForSync:
+                        if syncFile.fileName == fn:
+                            subbedUsers = syncFile.usersSubbed
 
-        # Check to see if the file has been modified
-        modified: bool = hf.fileHasChanged(filePath, fileHash[fn])
-        if modified:
-            print(f"{fn} has been modified")
-            fileHash[fn] = hf.getFileHash(filePath)
+                    for user in subbedUsers:
+                        if user.username == userAsPeer.username:
+                            subbedUsers.remove(user)
 
-            userPeer: Peer = Peer((G_MY_IP, G_MY_PORT), G_MY_USERNAME)
-            hf.sendFileSyncUpdate(fn, filePath, userPeer)
+                    with Classes.G_SyncFileLock:
+                        hf.sendFileSyncUpdate(fn, filePath, userAsPeer, subbedUsers)
+                    g_userWantsToSave = not g_userWantsToSave
 
 
 

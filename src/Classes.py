@@ -421,6 +421,10 @@ class Server:
 
             receiveFileTo(clientSocket, filePath)
 
+            for user in usersToBeSent:
+                if user.username == self.userName:
+                    usersToBeSent.remove(user)
+
             sendFileSyncUpdate(fileName, filePath, Peer(self.address, self.userName), usersToBeSent)
 
         return True
@@ -536,11 +540,12 @@ class PeerList:
         return (self.addr, self.username) == (other.addr, other.username)
 
 
-
 """
 Just leaving this comment to say circular imports are dumb and so is Python. That's why these methods needs to pasted
 Into this file
 """
+
+
 def sendFileSyncUpdate(fileName: str, filePath: Path, userAsPeerList: Peer, usersToBeSent: list[PeerList]):
     """
     Whenever a file in the FilesForSync directory is updated, this method will be called to send the update to the server
