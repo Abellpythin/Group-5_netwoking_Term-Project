@@ -421,7 +421,6 @@ def downloadFile(file: Classes.File, clientAddress: tuple[str, int], serverAddre
             peer_socket.send(jsonUserPeer.encode())
 
             fileSize: int = int(peer_socket.recv(Classes.G_BUFFER).decode())
-            print(f"received file size{fileSize}\n")
             if not fileSize:
                 raise FileNotFoundError("This is BAD!!!")
 
@@ -438,9 +437,7 @@ def downloadFile(file: Classes.File, clientAddress: tuple[str, int], serverAddre
                     if not data:
                         break
                     f.write(data)
-                    print(receivedSize, len(data))
                     receivedSize += len(data)
-                    print(data)
 
             print("File successfully downloaded! You will see your download once you end the P2P session.")
 
@@ -523,7 +520,7 @@ def sendFileSyncUpdate(fileName: str, filePath: Path, userAsPeerList: Peer, user
 
                     # Send the users that still need the update
                     jsonUsersToBeSent: str = json.dumps([user.__dict__() for user in usersToBeSent])
-                    print(f"Before sending Users who need it send: {usersToBeSent}")
+                    # print(f"Before sending Users who need it send: {usersToBeSent}")
                     peer_socket.send(jsonUsersToBeSent.encode())
 
                     #Optimize later I can't be bothered
@@ -531,7 +528,6 @@ def sendFileSyncUpdate(fileName: str, filePath: Path, userAsPeerList: Peer, user
 
                     sendFileTo(peer_socket, filePath)
 
-                    print("Update sent")
                     connectionSuccess = not connectionSuccess
 
                 except (TimeoutError, InterruptedError, ConnectionRefusedError) as err:

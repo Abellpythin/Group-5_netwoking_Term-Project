@@ -87,8 +87,7 @@ def receiveFileTo(receiving_socket: socket, filePath: Path):
 
     fileSize: int = int(receiving_socket.recv(G_BUFFER).decode())
 
-    time.sleep(0.5)
-    print(f"Function receiveFileTo: Server Received Updated File of Size: {fileSize}")
+    #print(f"Function receiveFileTo: Server Received Updated File of Size: {fileSize}")
 
     # This implies that unless a user explicitly unsubscribes from a folder, they will forever receive updates
     os.makedirs(os.path.dirname(filePath), exist_ok=True)
@@ -101,9 +100,7 @@ def receiveFileTo(receiving_socket: socket, filePath: Path):
             if not data:
                 break
             f.write(data)
-            print(receivedSize, len(data))
             receivedSize += len(data)
-            print(data)
 
 
 class Peer:
@@ -442,7 +439,7 @@ class Server:
             for user in usersToBeSent:
                 if user.username == self.userName:
                     usersToBeSent.remove(user)
-            print("Server Line 427: I got the update")
+            # print("Server Line 442: I got the update")
 
             sendFileSyncUpdate(fileName, filePath, Peer(self.address, self.userName), usersToBeSent)
 
