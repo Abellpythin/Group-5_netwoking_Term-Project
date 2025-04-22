@@ -423,7 +423,11 @@ class Server:
 
             # Receive a list of users who need the update
             jsonUsersToBeSent: str = clientSocket.recv(G_BUFFER).decode()
-            usersToBeSent: list[PeerList] = [peerList_from_dict(item) for item in json.loads(jsonUsersToBeSent)]
+
+            # If empty then move on
+            usersToBeSent: list[PeerList] = []
+            if jsonUsersToBeSent:
+                usersToBeSent = [peerList_from_dict(item) for item in json.loads(jsonUsersToBeSent)]
 
             currentDirectory: Path = Path.cwd()
             filePath: Path = currentDirectory.parent / "FilesForSync" / fileName
@@ -434,7 +438,7 @@ class Server:
                 if user.username == self.userName:
                     usersToBeSent.remove(user)
             print("Server Line 427: I got the update")
-
+            
             sendFileSyncUpdate(fileName, filePath, Peer(self.address, self.userName), usersToBeSent)
 
         return True
