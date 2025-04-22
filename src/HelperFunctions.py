@@ -96,6 +96,7 @@ def setUserName() -> str:
         except ValueError as e:
             print(f"Invalid username: {e}\n")
 
+    print()
     return G_MY_USERNAME
 
 
@@ -237,13 +238,51 @@ def handleSubscriptionToFile(userAsPeerList: PeerList) -> None:
     :param userAsPeerList:
     :return:
     """
-    counter: int = 1
+    # counter: int = 1
+    # index: int = 0
+    # for file in Classes.g_FilesForSync:
+    #     index += 1
+    #     print(f"| {counter}. File name: {file.fileName}")
+    #     print(f"|   Users Subscribed:")
+    #     for user in file.usersSubbed:
+    #         print(f"| - {user.username}")
+    #     counter += 1
+    #
+    # userSyncFileChoice: FileForSync | None = None
+    # userChoice: int | str | None = None
+    #
+    # while True:
+    #     userChoice = input("Select the number of the file you want to subscribe to or press . to go back: ")
+    #     print()
+    #     if userChoice.isdigit():
+    #         userChoice = int(userChoice) - 1
+    #         if 0 <= userChoice <= (len(Classes.g_FilesForSync) - 1):
+    #             userSyncFileChoice = Classes.g_FilesForSync[userChoice]
+    #             break
+    #     elif userChoice == '.':
+    #         return
+    #     print("Please enter a valid input.")
+
+    # -----------------------------------------
+
+    availableFiles: list[FileForSync] = []
     for file in Classes.g_FilesForSync:
-        print(f"| {counter}. File name: {file.fileName}")
+        # Filter condition: skip if the file has only 1 subscriber and it's the current user
+        if len(file.usersSubbed) == 1 and file.usersSubbed[0].addr == userAsPeerList.addr:
+            continue
+        availableFiles.append(file)
+
+    if not availableFiles:
+        print("There are no available files")
+        userPressesPeriod()
+        return
+
+    # Display the filtered files
+    for idx, file in enumerate(availableFiles, start=1):
+        print(f"| {idx}. File name: {file.fileName}")
         print(f"|   Users Subscribed:")
         for user in file.usersSubbed:
             print(f"| - {user.username}")
-        counter += 1
 
     userSyncFileChoice: FileForSync | None = None
     userChoice: int | str | None = None
@@ -253,8 +292,8 @@ def handleSubscriptionToFile(userAsPeerList: PeerList) -> None:
         print()
         if userChoice.isdigit():
             userChoice = int(userChoice) - 1
-            if 0 <= userChoice <= (len(Classes.g_FilesForSync) - 1):
-                userSyncFileChoice = Classes.g_FilesForSync[userChoice]
+            if 0 <= userChoice < len(availableFiles):
+                userSyncFileChoice = availableFiles[userChoice]
                 break
         elif userChoice == '.':
             return

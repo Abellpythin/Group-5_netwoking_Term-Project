@@ -62,8 +62,6 @@ def main():
     # Uncomment when done debugging
     G_MY_USERNAME = hf.setUserName()
     G_MY_IP = hf.setUserIP()
-    print(G_MY_IP)
-    print(G_MY_USERNAME)
     # ------------------------------------------------------------------------------------------------------------
 
     # IMPORTANT
@@ -266,7 +264,6 @@ def checkFilesForSyncUpdates():
                     hf.sendFileSyncUpdate(fn, filePath, userAsPeer, subbedUsers)
 
             g_userWantsToSave = not g_userWantsToSave
-
 
 
 def initialConnect():
