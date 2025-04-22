@@ -484,6 +484,7 @@ def sendFileSyncUpdate(fileName: str, filePath: Path, userAsPeerList: Peer, user
 
                     # Send the users that still need the update
                     jsonUsersToBeSent: str = json.dumps([user.__dict__() for user in usersToBeSent])
+                    print(f"Before sending Users who need it send: {usersToBeSent}")
                     peer_socket.send(jsonUsersToBeSent.encode())
 
                     sendFileTo(peer_socket, filePath)
