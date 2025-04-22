@@ -32,7 +32,7 @@ G_MAX_CONNECTIONS: int = 3
 g_serverIp: str | None
 g_serverPort: int | None
 
-G_FILE_SYNC_CHECK: int = 15  # The interval in seconds each file in FileForSync is checked for changes
+# G_FILE_SYNC_CHECK: int = 15  # The interval in seconds each file in FileForSync is checked for changes
 
 
 # When the user wants to end the program this variable changes to True and
@@ -191,7 +191,7 @@ def runServer():
             thread.join()
 
 
-def checkFilesForSyncUpdates():
+def checkFilesForSyncUpdates(needsToBeSent: list[PeerList]):
     """
     This function is run on a thread. It will iteratively check each file every x amount of seconds in the FilesForSync
     directory and if any users are subscribed to the file, it will send the update to them automatically
@@ -207,33 +207,31 @@ def checkFilesForSyncUpdates():
     for fn in fileNames:
         fileHash[fn] = hf.getFileHash(syncFileDir / fn)
 
+    # If new file not in dict, add it with an initial time of 0
+    # Do not send update to this (the current/the one who updated the file) user (obviously)
 
+    # Update fileNames to ensure
+    fileNames: list[str] = hf.list_files_in_directory(syncFileDir)
 
-    while not G_ENDPROGRAM:
-        # If new file not in dict, add it with an initial time of 0
-        # Do not send update to this (the current/the one who updated the file) user (obviously)
+    # Checks to see if any files have been deleted and deletes them if so
+    for fn in fileHash.keys():
+        if fn not in fileNames:
+            fileHash.pop(fn)
 
-        # Update fileNames to ensure
-        fileNames: list[str] = hf.list_files_in_directory(syncFileDir)
+    for fn in fileNames:
+        filePath: Path = syncFileDir / fn
+        if fn not in fileHash:
+            fileHash[fn] = hf.getFileHash(filePath)
+            continue
 
-        # Checks to see if any files have been deleted and deletes them if so
-        for fn in fileHash.keys():
-            if fn not in fileNames:
-                fileHash.pop(fn)
+        # Check to see if the file has been modified
+        modified: bool = hf.fileHasChanged(filePath, fileHash[fn])
+        if modified:
+            print(f"{fn} has been modified")
+            fileHash[fn] = hf.getFileHash(filePath)
 
-        for fn in fileNames:
-            filePath: Path = syncFileDir / fn
-            if fn not in fileHash:
-                fileHash[fn] = hf.getFileHash(filePath)
-                continue
-
-            # Check to see if the file has been modified
-            modified: bool = hf.fileHasChanged(filePath, fileHash[fn])
-            if modified:
-                print(f"{fn} has been modified")
-                fileHash[fn] = hf.getFileHash(filePath)
-
-        time.sleep(G_FILE_SYNC_CHECK)
+            userPeer: Peer = Peer((G_MY_IP, G_MY_PORT), G_MY_USERNAME)
+            hf.sendFileSyncUpdate(fn, filePath, userPeer)
 
 
 

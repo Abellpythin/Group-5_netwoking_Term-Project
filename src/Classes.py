@@ -15,6 +15,7 @@ G_peerList: list[PeerList] = []
 G_FileList: list[File] = []
 g_FilesForSync: list[FileForSync] = []
 G_peerListLock: threading.Lock = threading.Lock()
+G_SyncFileLock: threading.Lock = threading.Lock()
 
 
 # Enumerations are used to guarantee consistent strings for communication between sockets
@@ -32,6 +33,7 @@ class CRequest(Enum):
     RequestFileList = 5  # Request File list
     SendMySyncFiles = 6  # Sends List of Files and users subscribed to it
     SubscribeToFile = 7  # The client will subscribe to file
+    UpdateSyncFile = 8  # This informs the server that the client has updated a file and the server should sync it
 
 
 class SResponse(Enum):
@@ -131,7 +133,6 @@ class Peer:
         :return: List of peers currently online in network
         """
         global G_peerList
-        global G_peerListLock
         self.socket.send(CRequest.PeerList.name.encode())
 
         # Receive json data containing peerlist data
@@ -244,7 +245,6 @@ class Server:
         :param clientSocket:
         :return:
         """
-        global G_peerListLock
         # Ask client to Send their PeerList describing themselves
         # Receive client's PeerList object describing themselves
         clientResponse: str = self.serverSendResponse(clientSocket, SResponse.SendYourInfo)
@@ -285,9 +285,11 @@ class Server:
         return True
 
     def sendSyncFileList(self, clientSocket: socket):
-        json_data: str = json.dumps([fs.__dict__() for fs in g_FilesForSync])
 
-        clientSocket.send(json_data.encode())
+        with G_SyncFileLock:
+            json_data: str = json.dumps([fs.__dict__() for fs in g_FilesForSync])
+
+            clientSocket.send(json_data.encode())
 
     def confirmConnection(self, clientSocket: socket) -> bool:
         success: bool = True
@@ -355,12 +357,13 @@ class Server:
             fileSize: int = os.stat(str(filePath)).st_size
             clientSocket.send(f"{fileSize}".encode())
 
-            with open(filePath, 'rb') as f:
-                while True:
-                    data = f.read(1024)
-                    if not data:
-                        break
-                    clientSocket.sendall(data)
+            with G_SyncFileLock:
+                with open(filePath, 'rb') as f:
+                    while True:
+                        data = f.read(1024)
+                        if not data:
+                            break
+                        clientSocket.sendall(data)
 
         return True
 

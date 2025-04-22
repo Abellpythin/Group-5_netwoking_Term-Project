@@ -23,6 +23,29 @@ def sync_file_from_dict(syncFileAsDict):
     usersSubbed = [peerList_from_dict(u) for u in syncFileAsDict['usersSubbed']]
     return FileForSync(fileName=syncFileAsDict['fileName'], usersSubbed=usersSubbed)
 
+
+def sendFileTo(sending_socket: socket, filePath: Path):
+    """
+    This method will send a file to some place
+    :return:
+    """
+
+    fileSize: int = os.stat(str(filePath)).st_size
+
+    # Debugging
+    if fileSize == 0:
+        raise Exception("fileSize is 0 check your stuff")
+
+    sending_socket.send(f"{fileSize}".encode())
+
+    with open(filePath, 'rb') as f:
+        while True:
+            data = f.read(Classes.G_BUFFER)
+            if not data:
+                break
+            sending_socket.sendall(data)
+
+
 def clientSendRequest(peer_socket: socket, cRequest: Classes.CRequest | int) -> str:
     """
     Sends a request to a server
@@ -218,8 +241,8 @@ def handleSubscriptionToFile(userAsPeerList: PeerList) -> None:
             print(f"| - {user.username}")
         counter += 1
 
-    userSyncFileChoice: FileForSync
-    userChoice: int | str
+    userSyncFileChoice: FileForSync | None = None
+    userChoice: int | str | None = None
 
     while True:
         userChoice = input("Select the number of the file you want to subscribe to or press . to go back: ")
@@ -411,3 +434,58 @@ def fileHasChanged(filePath: Path, previousHash: str) -> bool:
     if currentHash != previousHash:
         return True
     return False
+
+
+def sendFileSyncUpdate(fileName: str, filePath: Path, userAsPeerList: Peer, usersToBeSent: list[PeerList]):
+    """
+    Whenever a file in the FilesForSync directory is updated, this method will be called to send the update to the server
+
+    :param fileName:
+    :param filePath:
+    :param userAsPeerList:
+    :return:
+    """
+
+    # subbedUser: list[PeerList] = []
+    # for syncFile in Classes.g_FilesForSync:
+    #     if syncFile.fileName == fileName:
+    #         subbedUser = syncFile.usersSubbed
+    #
+    # for user in subbedUser:
+    #     if user.username == userAsPeerList.username:
+    #         subbedUser.remove(user)
+
+    if not usersToBeSent:
+        print("sendFileSyncUpdate 437: No more users to send update to\n")
+        return
+
+    userToSendTo: tuple[str, int] = usersToBeSent[0].addr
+
+    # Acquire Lock to ensure nothing else edits data while sending
+    with Classes.G_SyncFileLock:
+        with userAsPeerList.createTCPSocket() as peer_socket:
+            connectionSuccess: bool = False
+
+            while not connectionSuccess:
+                try:
+                    peer_socket.settimeout(15)
+                    peer_socket.connect(userToSendTo)
+
+                    serverResponse: str = clientSendRequest(peer_socket, Classes.CRequest.UpdateSyncFile)
+
+                    if serverResponse != Classes.SResponse.SendYourInfo.name:
+                        raise Exception("Main Line 275: Server is not ready to receive File Sync Update")
+
+                    sendFileTo(peer_socket, filePath)
+
+                    connectionSuccess = not connectionSuccess
+
+                except (TimeoutError, InterruptedError, ConnectionRefusedError) as err:
+                    print("File Sync Update connection did not go through. Check the Client IP and Port")
+                    userSocket.close()
+                    userSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    pass
+
+
+
+
