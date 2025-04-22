@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import socket
 import json
@@ -32,9 +34,10 @@ def sendFileTo(sending_socket: socket, filePath: Path):
 
     fileSize: int = os.stat(str(filePath)).st_size
 
-    # Debugging
+    # Debugging ------------
     if fileSize == 0:
         raise Exception("fileSize is 0 check your stuff")
+    # ----------------
 
     sending_socket.send(f"{fileSize}".encode())
 
@@ -443,6 +446,7 @@ def sendFileSyncUpdate(fileName: str, filePath: Path, userAsPeerList: Peer, user
     :param fileName:
     :param filePath:
     :param userAsPeerList:
+    :param usersToBeSent: A list of users that need to be sent the update.
     :return:
     """
 
@@ -459,7 +463,7 @@ def sendFileSyncUpdate(fileName: str, filePath: Path, userAsPeerList: Peer, user
         print("sendFileSyncUpdate 437: No more users to send update to\n")
         return
 
-    userToSendTo: tuple[str, int] = usersToBeSent[0].addr
+    userToSendTo: tuple[str, int] = usersToBeSent.pop(0).addr
 
     # Acquire Lock to ensure nothing else edits data while sending
     with Classes.G_SyncFileLock:
@@ -471,10 +475,17 @@ def sendFileSyncUpdate(fileName: str, filePath: Path, userAsPeerList: Peer, user
                     peer_socket.settimeout(15)
                     peer_socket.connect(userToSendTo)
 
+                    # Request to send update to server
                     serverResponse: str = clientSendRequest(peer_socket, Classes.CRequest.UpdateSyncFile)
 
                     if serverResponse != Classes.SResponse.SendYourInfo.name:
                         raise Exception("Main Line 275: Server is not ready to receive File Sync Update")
+
+                    peer_socket.send(fileName.encode())
+
+                    # Send the users that still need the update
+                    jsonUsersToBeSent: str = json.dumps([user.__dict__() for user in usersToBeSent])
+                    peer_socket.send(jsonUsersToBeSent.encode())
 
                     sendFileTo(peer_socket, filePath)
 
