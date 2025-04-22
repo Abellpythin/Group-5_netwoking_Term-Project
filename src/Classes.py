@@ -86,6 +86,8 @@ def receiveFileTo(receiving_socket: socket, filePath: Path):
     """
 
     fileSize: int = int(receiving_socket.recv(G_BUFFER).decode())
+
+    time.sleep(0.5)
     print(f"Function receiveFileTo: Server Received Updated File of Size: {fileSize}")
 
     # This implies that unless a user explicitly unsubscribes from a folder, they will forever receive updates
@@ -134,7 +136,8 @@ class Peer:
         # Ex: pathlib.WindowsPath, pathlib.PosixPath, etc...
         currentDirectory: Path = Path.cwd()
         parent_of_parent_directory: Path = currentDirectory.parent / "Files"
-        fileNames: list[str] = list_files_in_directory(parent_of_parent_directory)
+        #fileNames: list[str] = list_files_in_directory(parent_of_parent_directory)
+        fileNames: list[str] = [fn for fn in list_files_in_directory(parent_of_parent_directory) if not fn.endswith('~')]
 
         # File names cannot be duplicates so need to set path
         # Just find file name in Files directory
@@ -348,7 +351,8 @@ class Server:
 
         currentDirectory: Path = Path.cwd()
         parent_of_parent_directory: Path = currentDirectory.parent / "Files/"
-        fileNames: list[str] = list_files_in_directory(parent_of_parent_directory)
+        #fileNames: list[str] = list_files_in_directory(parent_of_parent_directory)
+        fileNames: list[str] = [fn for fn in list_files_in_directory(parent_of_parent_directory) if not fn.endswith('~')]
 
 
         #print(f"WantedFile: {wantedFile.fileName}")
@@ -385,7 +389,8 @@ class Server:
         currentDirectory: Path = Path.cwd()
         syncFilePath: Path = currentDirectory.parent / "FilesForSync/"
 
-        fileNames: list[str] = list_files_in_directory(syncFilePath)
+        #fileNames: list[str] = list_files_in_directory(syncFilePath)
+        fileNames: list[str] = [fn for fn in list_files_in_directory(syncFilePath) if not fn.endswith('~')]
 
         if wantedSyncFile.fileName in fileNames:
             filePath: Path = syncFilePath / wantedSyncFile.fileName
@@ -492,7 +497,8 @@ class Server:
         fileObjectList: list[File] = []
 
         if os.path.exists(filePath):
-            files: list[str] = list_files_in_directory(filePath)
+            #files: list[str] = list_files_in_directory(filePath)
+            files: list[str] = [fn for fn in list_files_in_directory(filePath) if not fn.endswith('~')]
 
             for fileName in files:
                 fileObjectList.append(File(fileName, self.userName, self.address))
