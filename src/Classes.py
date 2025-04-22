@@ -424,6 +424,7 @@ class Server:
             for user in usersToBeSent:
                 if user.username == self.userName:
                     usersToBeSent.remove(user)
+            print("Server Line 427: I got the update")
 
             sendFileSyncUpdate(fileName, filePath, Peer(self.address, self.userName), usersToBeSent)
 
@@ -461,7 +462,6 @@ class Server:
                 if not any(fs.fileName == fileSyncObj.fileName for fs in g_FilesForSync):
                     g_FilesForSync.append(fileSyncObj)
 
-            print("Should be FilesForSync object: ", g_FilesForSync)
             jsonFilesForSync: str = json.dumps([fs.__dict__() for fs in g_FilesForSync])
             clientSocket.send(jsonFilesForSync.encode())
 

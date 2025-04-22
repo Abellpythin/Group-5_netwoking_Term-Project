@@ -480,6 +480,7 @@ def sendFileSyncUpdate(fileName: str, filePath: Path, userAsPeerList: Peer, user
 
                     sendFileTo(peer_socket, filePath)
 
+                    print("Update sent")
                     connectionSuccess = not connectionSuccess
 
                 except (TimeoutError, InterruptedError, ConnectionRefusedError) as err:

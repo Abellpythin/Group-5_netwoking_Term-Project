@@ -220,28 +220,31 @@ def checkFilesForSyncUpdates():
         # out
         fileNames: list[str] = [fn for fn in hf.list_files_in_directory(syncFileDir) if not fn.endswith('~')]
 
+        # Checks to see if any files have been deleted and deletes them if so
+        namesToRemove: list[str] = []
+        for fn in fileHash.keys():
+            if fn not in fileNames:
+                print(fn)
+                namesToRemove.append(fn)
+        for name in namesToRemove:
+            fileHash.pop(name)
+
+        for fn in fileNames:
+            # If a new file is added, add it to the hash
+            if (fn not in fileHash) and os.path.exists(syncFileDir / fn):
+                fileHash[fn] = hf.getFileHash(syncFileDir / fn)
+                print(fn)
+                continue
+
         if g_userWantsToSave:
-            print(1)
-            # Checks to see if any files have been deleted and deletes them if so
-            namesToRemove: list[str] = []
-            for fn in fileHash.keys():
-                if fn not in fileNames:
-                    print(fn)
-                    namesToRemove.append(fn)
-            for name in namesToRemove:
-                fileHash.pop(name)
 
             # Checks each fileName
             for fn in fileNames:
                 filePath: Path = syncFileDir / fn
 
-                # If a new file is added, add it to the hash
-                if (fn not in fileHash) and os.path.exists(filePath):
-                    fileHash[fn] = hf.getFileHash(filePath)
-                    continue
-
                 # Check to see if the file has been modified
                 modified: bool = hf.fileHasChanged(filePath, fileHash[fn])
+                print(modified)
                 if modified:
                     #print(f"{fn} has been modified")
                     fileHash[fn] = hf.getFileHash(filePath)
