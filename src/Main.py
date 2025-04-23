@@ -236,6 +236,7 @@ def checkFilesForSyncUpdates():
                 continue
 
         if g_userWantsToSave:
+            print(Classes.g_FilesForSync)
             # Checks each fileName
             for fn in fileNames:
                 filePath: Path = syncFileDir / fn
