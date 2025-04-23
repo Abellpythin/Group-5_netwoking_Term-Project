@@ -367,7 +367,7 @@ def initialConnect():
                         # If the server has a syncFile with the same name, get all the users subscribed to it
                         if fileSyncObj.fileName == globalFS.fileName:
                             Classes.g_FilesForSync[prevIndex].usersSubbed = fileSyncObj.usersSubbed
-                        elif fileSyncObj.fileName != fileSyncObj.fileName:
+                        elif fileSyncObj.fileName != globalFS.fileName:
                             Classes.g_FilesForSync.append(fileSyncObj)
                         prevIndex += 1
 
