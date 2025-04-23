@@ -86,8 +86,8 @@ def receiveFileTo(receiving_socket: socket, filePath: Path):
     """
 
     # fileSize: int = int(receiving_socket.recv(32).decode())
-    header = recv_exact(receiving_socket, 10)
-    fileSize: int = int(header.decode())
+    bytesFileSize = receiving_socket.recvfrom(G_BUFFER)
+    fileSize: int = int.from_bytes(bytesFileSize, byteorder='big')
 
 
     #print(f"Function receiveFileTo: Server Received Updated File of Size: {fileSize}")
@@ -105,15 +105,6 @@ def receiveFileTo(receiving_socket: socket, filePath: Path):
             f.write(data)
             receivedSize += len(data)
 
-# Read exactly 10 bytes for the header
-def recv_exact(socket, n):
-    data = b''
-    while len(data) < n:
-        packet = socket.recv(n - len(data))
-        if not packet:
-            raise ConnectionError("Socket closed")
-        data += packet
-    return data
 
 class Peer:
     """

@@ -34,14 +34,14 @@ def sendFileTo(sending_socket: socket, filePath: Path):
     """
 
     fileSize: int = os.stat(str(filePath)).st_size
-    header: bytes = str(fileSize).zfill(10).encode()  # 10-byte length header
+    byteFileSize: bytes = fileSize.to_bytes(10, byteorder='big')
 
     # Debugging ------------
     if fileSize == 0:
         raise Exception("fileSize is 0 check your stuff")
     # ----------------
 
-    sending_socket.sendall(header)
+    sending_socket.sendall(byteFileSize)
     # sending_socket.send(f"{fileSize}".encode())
 
     with open(filePath, 'rb') as f:
