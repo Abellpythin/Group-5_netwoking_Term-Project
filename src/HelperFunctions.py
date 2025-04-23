@@ -310,17 +310,16 @@ def downloadSubscribedFile(syncFile: FileForSync, userAsPeerList: PeerList) -> N
             os.makedirs(os.path.dirname(directoryPath), exist_ok=True)
 
             receivedSize: int = 0
-            with Classes.G_SyncFileLock:
-                for fileSync in Classes.g_FilesForSync:
-                    if syncFile == fileSync:
-                        syncFile.usersSubbed.append(userAsPeerList)
-                with open(directoryPath, 'wb') as f:
-                    while receivedSize < fileSize:
-                        data = peer_socket.recv(Classes.G_BUFFER)
-                        if not data:
-                            break
-                        f.write(data)
-                        receivedSize += len(data)
+            for fileSync in Classes.g_FilesForSync:
+                if syncFile == fileSync:
+                    syncFile.usersSubbed.append(userAsPeerList)
+            with open(directoryPath, 'wb') as f:
+                while receivedSize < fileSize:
+                    data = peer_socket.recv(Classes.G_BUFFER)
+                    if not data:
+                        break
+                    f.write(data)
+                    receivedSize += len(data)
 
         except (TimeoutError, InterruptedError, ConnectionRefusedError) as err:
             print("handleSubscriptionToFile Failed")

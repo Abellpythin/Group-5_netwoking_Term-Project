@@ -363,7 +363,6 @@ def initialConnect():
                     if not any(fs.fileName == fileSyncObj.fileName for fs in Classes.g_FilesForSync):
                         Classes.g_FilesForSync.append(fileSyncObj)
 
-
                 connectionSuccess = not connectionSuccess
 
             except (TimeoutError, InterruptedError, ConnectionRefusedError) as err:
