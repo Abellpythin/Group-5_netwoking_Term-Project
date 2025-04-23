@@ -41,6 +41,7 @@ def sendFileTo(sending_socket: socket, filePath: Path):
         raise Exception("fileSize is 0 check your stuff")
     # ----------------
 
+    print(byteFileSize)
     sending_socket.sendall(byteFileSize)
     # sending_socket.send(f"{fileSize}".encode())
 

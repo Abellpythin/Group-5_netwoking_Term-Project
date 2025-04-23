@@ -86,7 +86,7 @@ def receiveFileTo(receiving_socket: socket, filePath: Path):
     """
 
     # fileSize: int = int(receiving_socket.recv(32).decode())
-    bytesFileSize = receiving_socket.recvfrom(G_BUFFER)
+    bytesFileSize = receiving_socket.recv(G_BUFFER)
     fileSize: int = int.from_bytes(bytesFileSize, byteorder='big')
 
 
