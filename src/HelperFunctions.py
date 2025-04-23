@@ -33,14 +33,15 @@ def sendFileTo(sending_socket: socket, filePath: Path):
     :return:
     """
 
-    fileSize: int = os.stat(str(filePath)).st_size
+    fileSizeInt: int = os.stat(str(filePath)).st_size
+    fileSizeBytes: bytes = fileSizeInt.to_bytes(8, byteorder='big')
 
     # Debugging ------------
-    if fileSize == 0:
+    if fileSizeInt == 0:
         raise Exception("fileSize is 0 check your stuff")
     # ----------------
 
-    sending_socket.send(f"{fileSize}".encode())
+    sending_socket.send(fileSizeBytes)
 
     with open(filePath, 'rb') as f:
         while True:

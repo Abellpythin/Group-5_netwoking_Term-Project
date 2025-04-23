@@ -85,7 +85,8 @@ def receiveFileTo(receiving_socket: socket, filePath: Path):
     :return:
     """
 
-    fileSize: int = int(receiving_socket.recv(G_BUFFER).decode())
+    fileSizeBytes: bytes = receiving_socket.recv(10)
+    fileSize: int = int.from_bytes(fileSizeBytes, byteorder='big')
 
     #print(f"Function receiveFileTo: Server Received Updated File of Size: {fileSize}")
 
