@@ -468,6 +468,7 @@ def sendFileSyncUpdate(fileName: str, filePath: Path, userAsPeerList: Peer, user
     """
 
     if not usersToBeSent:
+        print("There are no users to send this update to")
         return
 
     userToSendTo: tuple[str, int] = usersToBeSent.pop(0).addr

@@ -238,6 +238,7 @@ def checkFilesForSyncUpdates():
         if g_userWantsToSave:
             # Checks each fileName
             for fn in fileNames:
+                print(f"When user wants to save, here are the list of files to check: {fn}")
                 filePath: Path = syncFileDir / fn
 
                 # Check to see if the file has been modified
@@ -355,10 +356,21 @@ def initialConnect():
                 # Receives the server's sync list
                 serverFileSyncList = peer_socket.recv(Classes.G_BUFFER).decode()
 
+                prevG_FilesForSync: list[FileForSync] = Classes.g_FilesForSync
+                # An index used to edit data in the g_FilesForSync
+                prevIndex: int = 0
                 # Adds server's File Sync List if not already in user's File Sync List
                 for fileSyncObj in [hf.sync_file_from_dict(item) for item in json.loads(serverFileSyncList)]:
-                    if not any(fs.fileName == fileSyncObj.fileName for fs in Classes.g_FilesForSync):
-                        Classes.g_FilesForSync.append(fileSyncObj)
+                    # if not any(fs.fileName == fileSyncObj.fileName for fs in Classes.g_FilesForSync):
+                    #     Classes.g_FilesForSync.append(fileSyncObj)
+                    for globalFS in prevG_FilesForSync:
+                        # If the server has a syncFile with the same name, get all the users subscribed to it
+                        if fileSyncObj.fileName == globalFS.fileName:
+                            Classes.g_FilesForSync[prevIndex].usersSubbed = fileSyncObj.usersSubbed
+                        else:
+                            Classes.g_FilesForSync.append(fileSyncObj)
+                        prevIndex += 1
+
 
                 connectionSuccess = not connectionSuccess
 
