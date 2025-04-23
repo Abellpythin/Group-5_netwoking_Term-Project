@@ -33,17 +33,15 @@ def sendFileTo(sending_socket: socket, filePath: Path):
     :return:
     """
 
-    fileSize: int = os.stat(str(filePath)).st_size
-    byteFileSize: bytes = fileSize.to_bytes(10, byteorder='big')
+    fileSizeInt: int = os.stat(str(filePath)).st_size
+    fileSizeBytes: bytes = fileSizeInt.to_bytes(8, byteorder='big')
 
     # Debugging ------------
-    if fileSize == 0:
+    if fileSizeInt == 0:
         raise Exception("fileSize is 0 check your stuff")
     # ----------------
 
-    print(byteFileSize)
-    sending_socket.sendall(byteFileSize)
-    # sending_socket.send(f"{fileSize}".encode())
+    sending_socket.send(fileSizeBytes)
 
     with open(filePath, 'rb') as f:
         while True:
@@ -241,32 +239,6 @@ def handleSubscriptionToFile(userAsPeerList: PeerList) -> None:
     :param userAsPeerList:
     :return:
     """
-    # counter: int = 1
-    # index: int = 0
-    # for file in Classes.g_FilesForSync:
-    #     index += 1
-    #     print(f"| {counter}. File name: {file.fileName}")
-    #     print(f"|   Users Subscribed:")
-    #     for user in file.usersSubbed:
-    #         print(f"| - {user.username}")
-    #     counter += 1
-    #
-    # userSyncFileChoice: FileForSync | None = None
-    # userChoice: int | str | None = None
-    #
-    # while True:
-    #     userChoice = input("Select the number of the file you want to subscribe to or press . to go back: ")
-    #     print()
-    #     if userChoice.isdigit():
-    #         userChoice = int(userChoice) - 1
-    #         if 0 <= userChoice <= (len(Classes.g_FilesForSync) - 1):
-    #             userSyncFileChoice = Classes.g_FilesForSync[userChoice]
-    #             break
-    #     elif userChoice == '.':
-    #         return
-    #     print("Please enter a valid input.")
-
-    # -----------------------------------------
 
     availableFiles: list[FileForSync] = []
     for file in Classes.g_FilesForSync:
@@ -304,7 +276,7 @@ def handleSubscriptionToFile(userAsPeerList: PeerList) -> None:
 
     downloadSubscribedFile(userSyncFileChoice, userAsPeerList)
     print("File successfully downloaded")
-    print("Stop the program to see your download\n")
+    print("View your folders to see the download\n")
 
 
 def downloadSubscribedFile(syncFile: FileForSync, userAsPeerList: PeerList) -> None:
@@ -329,7 +301,6 @@ def downloadSubscribedFile(syncFile: FileForSync, userAsPeerList: PeerList) -> N
             peer_socket.send(jsonUserAsPeerList.encode())
 
             fileSize: int = int(peer_socket.recv(Classes.G_BUFFER).decode())
-            print(f"Received Sync File size{fileSize}\n")
             if not fileSize:
                 raise FileNotFoundError("MakeSure File is openable")
 
@@ -339,18 +310,16 @@ def downloadSubscribedFile(syncFile: FileForSync, userAsPeerList: PeerList) -> N
             os.makedirs(os.path.dirname(directoryPath), exist_ok=True)
 
             receivedSize: int = 0
-            with Classes.G_SyncFileLock:
-                for fileSync in Classes.g_FilesForSync:
-                    if syncFile == fileSync:
-                        syncFile.usersSubbed.append(userAsPeerList)
-                with open(directoryPath, 'wb') as f:
-                    while receivedSize < fileSize:
-                        data = peer_socket.recv(Classes.G_BUFFER)
-                        if not data:
-                            break
-                        f.write(data)
-                        print(data)
-                        receivedSize += len(data)
+            for fileSync in Classes.g_FilesForSync:
+                if syncFile == fileSync:
+                    syncFile.usersSubbed.append(userAsPeerList)
+            with open(directoryPath, 'wb') as f:
+                while receivedSize < fileSize:
+                    data = peer_socket.recv(Classes.G_BUFFER)
+                    if not data:
+                        break
+                    f.write(data)
+                    receivedSize += len(data)
 
         except (TimeoutError, InterruptedError, ConnectionRefusedError) as err:
             print("handleSubscriptionToFile Failed")
@@ -390,7 +359,6 @@ def handleDownloadFileRequest(clientAddress: tuple[str, int], serverAddress: tup
 
     downloadFile(userFileChoice, clientAddress, serverAddress)
     print("File successfully downloaded")
-    print("Stop the program to see your download\n")
 
 
 def downloadFile(file: Classes.File, clientAddress: tuple[str, int], serverAddress: tuple[str, int]) -> None:
@@ -497,46 +465,49 @@ def sendFileSyncUpdate(fileName: str, filePath: Path, userAsPeerList: Peer, user
     :param usersToBeSent: A list of users that need to be sent the update.
     :return:
     """
+    print(f"Update, Users to be sent: {usersToBeSent}")
 
     if not usersToBeSent:
+        print("There are no users to send this update to")
         return
 
     userToSendTo: tuple[str, int] = usersToBeSent.pop(0).addr
 
     # Acquire Lock to ensure nothing else edits data while sending
-    with Classes.G_SyncFileLock:
-        with userAsPeerList.createTCPSocket() as peer_socket:
-            connectionSuccess: bool = False
 
-            while not connectionSuccess:
-                try:
-                    peer_socket.settimeout(15)
-                    peer_socket.connect(tuple(userToSendTo))
+    with userAsPeerList.createTCPSocket() as peer_socket:
+        connectionSuccess: bool = False
 
-                    # Request to send update to server
-                    serverResponse: str = clientSendRequest(peer_socket, Classes.CRequest.UpdateSyncFile)
+        while not connectionSuccess:
+            try:
+                peer_socket.settimeout(15)
+                peer_socket.connect(tuple(userToSendTo))
 
-                    if serverResponse != Classes.SResponse.SendYourInfo.name:
-                        raise Exception("Main Line 275: Server is not ready to receive File Sync Update")
+                # Request to send update to server
+                serverResponse: str = clientSendRequest(peer_socket, Classes.CRequest.UpdateSyncFile)
 
-                    peer_socket.send(fileName.encode())
+                if serverResponse != Classes.SResponse.SendYourInfo.name:
+                    raise Exception("Main Line 275: Server is not ready to receive File Sync Update")
 
-                    # Send the users that still need the update
-                    jsonUsersToBeSent: str = json.dumps([user.__dict__() for user in usersToBeSent])
-                    # print(f"Before sending Users who need it send: {usersToBeSent}")
-                    peer_socket.send(jsonUsersToBeSent.encode())
+                peer_socket.send(fileName.encode())
 
-                    #Optimize later I can't be bothered
+                # Send the users that still need the update
+                jsonUsersToBeSent: str = json.dumps([user.__dict__() for user in usersToBeSent])
 
-                    sendFileTo(peer_socket, filePath)
+                peer_socket.send(jsonUsersToBeSent.encode())
 
-                    connectionSuccess = not connectionSuccess
+                #Optimize later I can't be bothered
+                time.sleep(0.5)
 
-                except (TimeoutError, InterruptedError, ConnectionRefusedError) as err:
-                    print("File Sync Update connection did not go through. Check the Client IP and Port")
-                    userSocket.close()
-                    userSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    pass
+                sendFileTo(peer_socket, filePath)
+
+                connectionSuccess = not connectionSuccess
+
+            except (TimeoutError, InterruptedError, ConnectionRefusedError) as err:
+                print("File Sync Update connection did not go through. Check the Client IP and Port")
+                userSocket.close()
+                userSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                pass
 
 
 
