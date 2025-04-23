@@ -238,7 +238,6 @@ def checkFilesForSyncUpdates():
         if g_userWantsToSave:
             # Checks each fileName
             for fn in fileNames:
-                print(f"When user wants to save, here are the list of files to check: {fn}")
                 filePath: Path = syncFileDir / fn
 
                 # Check to see if the file has been modified

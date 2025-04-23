@@ -465,6 +465,7 @@ def sendFileSyncUpdate(fileName: str, filePath: Path, userAsPeerList: Peer, user
     :param usersToBeSent: A list of users that need to be sent the update.
     :return:
     """
+    print(f"Update, Users to be sent: {usersToBeSent}")
 
     if not usersToBeSent:
         print("There are no users to send this update to")
@@ -473,40 +474,40 @@ def sendFileSyncUpdate(fileName: str, filePath: Path, userAsPeerList: Peer, user
     userToSendTo: tuple[str, int] = usersToBeSent.pop(0).addr
 
     # Acquire Lock to ensure nothing else edits data while sending
-    with Classes.G_SyncFileLock:
-        with userAsPeerList.createTCPSocket() as peer_socket:
-            connectionSuccess: bool = False
 
-            while not connectionSuccess:
-                try:
-                    peer_socket.settimeout(15)
-                    peer_socket.connect(tuple(userToSendTo))
+    with userAsPeerList.createTCPSocket() as peer_socket:
+        connectionSuccess: bool = False
 
-                    # Request to send update to server
-                    serverResponse: str = clientSendRequest(peer_socket, Classes.CRequest.UpdateSyncFile)
+        while not connectionSuccess:
+            try:
+                peer_socket.settimeout(15)
+                peer_socket.connect(tuple(userToSendTo))
 
-                    if serverResponse != Classes.SResponse.SendYourInfo.name:
-                        raise Exception("Main Line 275: Server is not ready to receive File Sync Update")
+                # Request to send update to server
+                serverResponse: str = clientSendRequest(peer_socket, Classes.CRequest.UpdateSyncFile)
 
-                    peer_socket.send(fileName.encode())
+                if serverResponse != Classes.SResponse.SendYourInfo.name:
+                    raise Exception("Main Line 275: Server is not ready to receive File Sync Update")
 
-                    # Send the users that still need the update
-                    jsonUsersToBeSent: str = json.dumps([user.__dict__() for user in usersToBeSent])
+                peer_socket.send(fileName.encode())
 
-                    peer_socket.send(jsonUsersToBeSent.encode())
+                # Send the users that still need the update
+                jsonUsersToBeSent: str = json.dumps([user.__dict__() for user in usersToBeSent])
 
-                    #Optimize later I can't be bothered
-                    time.sleep(0.5)
+                peer_socket.send(jsonUsersToBeSent.encode())
 
-                    sendFileTo(peer_socket, filePath)
+                #Optimize later I can't be bothered
+                time.sleep(0.5)
 
-                    connectionSuccess = not connectionSuccess
+                sendFileTo(peer_socket, filePath)
 
-                except (TimeoutError, InterruptedError, ConnectionRefusedError) as err:
-                    print("File Sync Update connection did not go through. Check the Client IP and Port")
-                    userSocket.close()
-                    userSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    pass
+                connectionSuccess = not connectionSuccess
+
+            except (TimeoutError, InterruptedError, ConnectionRefusedError) as err:
+                print("File Sync Update connection did not go through. Check the Client IP and Port")
+                userSocket.close()
+                userSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                pass
 
 
 
