@@ -239,32 +239,6 @@ def handleSubscriptionToFile(userAsPeerList: PeerList) -> None:
     :param userAsPeerList:
     :return:
     """
-    # counter: int = 1
-    # index: int = 0
-    # for file in Classes.g_FilesForSync:
-    #     index += 1
-    #     print(f"| {counter}. File name: {file.fileName}")
-    #     print(f"|   Users Subscribed:")
-    #     for user in file.usersSubbed:
-    #         print(f"| - {user.username}")
-    #     counter += 1
-    #
-    # userSyncFileChoice: FileForSync | None = None
-    # userChoice: int | str | None = None
-    #
-    # while True:
-    #     userChoice = input("Select the number of the file you want to subscribe to or press . to go back: ")
-    #     print()
-    #     if userChoice.isdigit():
-    #         userChoice = int(userChoice) - 1
-    #         if 0 <= userChoice <= (len(Classes.g_FilesForSync) - 1):
-    #             userSyncFileChoice = Classes.g_FilesForSync[userChoice]
-    #             break
-    #     elif userChoice == '.':
-    #         return
-    #     print("Please enter a valid input.")
-
-    # -----------------------------------------
 
     availableFiles: list[FileForSync] = []
     for file in Classes.g_FilesForSync:
@@ -302,7 +276,7 @@ def handleSubscriptionToFile(userAsPeerList: PeerList) -> None:
 
     downloadSubscribedFile(userSyncFileChoice, userAsPeerList)
     print("File successfully downloaded")
-    print("Stop the program to see your download\n")
+    print("View your folders to see the download\n")
 
 
 def downloadSubscribedFile(syncFile: FileForSync, userAsPeerList: PeerList) -> None:
@@ -327,7 +301,6 @@ def downloadSubscribedFile(syncFile: FileForSync, userAsPeerList: PeerList) -> N
             peer_socket.send(jsonUserAsPeerList.encode())
 
             fileSize: int = int(peer_socket.recv(Classes.G_BUFFER).decode())
-            print(f"Received Sync File size{fileSize}\n")
             if not fileSize:
                 raise FileNotFoundError("MakeSure File is openable")
 
@@ -347,7 +320,6 @@ def downloadSubscribedFile(syncFile: FileForSync, userAsPeerList: PeerList) -> N
                         if not data:
                             break
                         f.write(data)
-                        print(data)
                         receivedSize += len(data)
 
         except (TimeoutError, InterruptedError, ConnectionRefusedError) as err:
@@ -388,7 +360,6 @@ def handleDownloadFileRequest(clientAddress: tuple[str, int], serverAddress: tup
 
     downloadFile(userFileChoice, clientAddress, serverAddress)
     print("File successfully downloaded")
-    print("Stop the program to see your download\n")
 
 
 def downloadFile(file: Classes.File, clientAddress: tuple[str, int], serverAddress: tuple[str, int]) -> None:
@@ -521,7 +492,7 @@ def sendFileSyncUpdate(fileName: str, filePath: Path, userAsPeerList: Peer, user
 
                     # Send the users that still need the update
                     jsonUsersToBeSent: str = json.dumps([user.__dict__() for user in usersToBeSent])
-                    # print(f"Before sending Users who need it send: {usersToBeSent}")
+
                     peer_socket.send(jsonUsersToBeSent.encode())
 
                     #Optimize later I can't be bothered

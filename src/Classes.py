@@ -573,10 +573,7 @@ def sendFileSyncUpdate(fileName: str, filePath: Path, userAsPeerList: Peer, user
     :return:
     """
 
-
-
     if not usersToBeSent:
-        print("sendFileSyncUpdate 437: No more users to send update to\n")
         return
 
     userToSendTo: tuple[str, int] = usersToBeSent.pop(0).addr
@@ -589,7 +586,7 @@ def sendFileSyncUpdate(fileName: str, filePath: Path, userAsPeerList: Peer, user
             while not connectionSuccess:
                 try:
                     peer_socket.settimeout(15)
-                    peer_socket.connect(userToSendTo)
+                    peer_socket.connect(tuple(userToSendTo))
 
                     # Request to send update to server
                     serverResponse: str = clientSendRequest(peer_socket, CRequest.UpdateSyncFile)
@@ -601,7 +598,11 @@ def sendFileSyncUpdate(fileName: str, filePath: Path, userAsPeerList: Peer, user
 
                     # Send the users that still need the update
                     jsonUsersToBeSent: str = json.dumps([user.__dict__() for user in usersToBeSent])
+
                     peer_socket.send(jsonUsersToBeSent.encode())
+
+                    #Optimize later I can't be bothered
+                    time.sleep(0.5)
 
                     sendFileTo(peer_socket, filePath)
 

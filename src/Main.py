@@ -225,7 +225,6 @@ def checkFilesForSyncUpdates():
         namesToRemove: list[str] = []
         for fn in fileHash.keys():
             if fn not in fileNames:
-                print(fn)
                 namesToRemove.append(fn)
         for name in namesToRemove:
             fileHash.pop(name)
@@ -234,7 +233,6 @@ def checkFilesForSyncUpdates():
             # If a new file is added, add it to the hash
             if (fn not in fileHash) and os.path.exists(syncFileDir / fn):
                 fileHash[fn] = hf.getFileHash(syncFileDir / fn)
-                print(fn)
                 continue
 
         if g_userWantsToSave:
@@ -244,7 +242,6 @@ def checkFilesForSyncUpdates():
 
                 # Check to see if the file has been modified
                 modified: bool = hf.fileHasChanged(filePath, fileHash[fn])
-                print(modified)
                 if modified:
                     # Update previous hash to current
                     fileHash[fn] = hf.getFileHash(filePath)
@@ -253,15 +250,9 @@ def checkFilesForSyncUpdates():
                     for syncFile in Classes.g_FilesForSync:
                         if syncFile.fileName == fn:
                             subbedUsers = syncFile.usersSubbed
-                            print(syncFile.fileName)
-                            print(syncFile)
-                            print(Classes.g_FilesForSync)
-                            print(subbedUsers)
-
                     subbedUsers = [user for user in subbedUsers if user.username != userAsPeer.username]
 
                     #with Classes.G_SyncFileLock:
-                    print("we're here")
                     hf.sendFileSyncUpdate(fn, filePath, userAsPeer, subbedUsers)
 
             g_userWantsToSave = not g_userWantsToSave
@@ -367,7 +358,6 @@ def initialConnect():
                 # Adds server's File Sync List if not already in user's File Sync List
                 for fileSyncObj in [hf.sync_file_from_dict(item) for item in json.loads(serverFileSyncList)]:
                     if not any(fs.fileName == fileSyncObj.fileName for fs in Classes.g_FilesForSync):
-                        print(Classes.g_FilesForSync)
                         Classes.g_FilesForSync.append(fileSyncObj)
 
                 connectionSuccess = not connectionSuccess
