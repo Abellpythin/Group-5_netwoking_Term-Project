@@ -15,7 +15,7 @@ G_peerList: list[PeerList] = []
 G_FileList: list[File] = []
 g_FilesForSync: list[FileForSync] = []
 G_peerListLock: threading.Lock = threading.Lock()
-G_SyncFileLock: threading.Lock = threading.Lock()
+
 
 
 # Enumerations are used to guarantee consistent strings for communication between sockets
@@ -317,10 +317,9 @@ class Server:
 
     def sendSyncFileList(self, clientSocket: socket):
 
-        with G_SyncFileLock:
-            json_data: str = json.dumps([fs.__dict__() for fs in g_FilesForSync])
+        json_data: str = json.dumps([fs.__dict__() for fs in g_FilesForSync])
 
-            clientSocket.send(json_data.encode())
+        clientSocket.send(json_data.encode())
 
     def confirmConnection(self, clientSocket: socket) -> bool:
         success: bool = True
@@ -416,32 +415,31 @@ class Server:
         :return:
         """
 
-        with G_SyncFileLock:
-            # What if clientResponse is empty?
-            sendStr: str = SResponse.SendYourInfo.name
-            clientSocket.send(sendStr.encode())
+        # What if clientResponse is empty?
+        sendStr: str = SResponse.SendYourInfo.name
+        clientSocket.send(sendStr.encode())
 
-            fileName: str = clientSocket.recv(G_BUFFER).decode()
+        fileName: str = clientSocket.recv(G_BUFFER).decode()
 
-            # Receive a list of users who need the update
-            jsonUsersToBeSent: str = clientSocket.recv(G_BUFFER).decode()
+        # Receive a list of users who need the update
+        jsonUsersToBeSent: str = clientSocket.recv(G_BUFFER).decode()
 
-            # If empty then move on
-            usersToBeSent: list[PeerList] = []
-            if jsonUsersToBeSent:
-                usersToBeSent = [peerList_from_dict(item) for item in json.loads(jsonUsersToBeSent)]
+        # If empty then move on
+        usersToBeSent: list[PeerList] = []
+        if jsonUsersToBeSent:
+            usersToBeSent = [peerList_from_dict(item) for item in json.loads(jsonUsersToBeSent)]
 
-            currentDirectory: Path = Path.cwd()
-            filePath: Path = currentDirectory.parent / "FilesForSync" / fileName
+        currentDirectory: Path = Path.cwd()
+        filePath: Path = currentDirectory.parent / "FilesForSync" / fileName
 
-            receiveFileTo(clientSocket, filePath)
+        receiveFileTo(clientSocket, filePath)
 
-            for user in usersToBeSent:
-                if user.username == self.userName:
-                    usersToBeSent.remove(user)
-            # print("Server Line 442: I got the update")
+        for user in usersToBeSent:
+            if user.username == self.userName:
+                usersToBeSent.remove(user)
+        # print("Server Line 442: I got the update")
 
-            sendFileSyncUpdate(fileName, filePath, Peer(self.address, self.userName), usersToBeSent)
+        sendFileSyncUpdate(fileName, filePath, Peer(self.address, self.userName), usersToBeSent)
 
         return True
 
@@ -577,41 +575,39 @@ def sendFileSyncUpdate(fileName: str, filePath: Path, userAsPeerList: Peer, user
 
     userToSendTo: tuple[str, int] = usersToBeSent.pop(0).addr
 
-    # Acquire Lock to ensure nothing else edits data while sending
-    with G_SyncFileLock:
-        with userAsPeerList.createTCPSocket() as peer_socket:
-            connectionSuccess: bool = False
+    with userAsPeerList.createTCPSocket() as peer_socket:
+        connectionSuccess: bool = False
 
-            while not connectionSuccess:
-                try:
-                    peer_socket.settimeout(15)
-                    peer_socket.connect(tuple(userToSendTo))
+        while not connectionSuccess:
+            try:
+                peer_socket.settimeout(15)
+                peer_socket.connect(tuple(userToSendTo))
 
-                    # Request to send update to server
-                    serverResponse: str = clientSendRequest(peer_socket, CRequest.UpdateSyncFile)
+                # Request to send update to server
+                serverResponse: str = clientSendRequest(peer_socket, CRequest.UpdateSyncFile)
 
-                    if serverResponse != SResponse.SendYourInfo.name:
-                        raise Exception("Main Line 275: Server is not ready to receive File Sync Update")
+                if serverResponse != SResponse.SendYourInfo.name:
+                    raise Exception("Main Line 275: Server is not ready to receive File Sync Update")
 
-                    peer_socket.send(fileName.encode())
+                peer_socket.send(fileName.encode())
 
-                    # Send the users that still need the update
-                    jsonUsersToBeSent: str = json.dumps([user.__dict__() for user in usersToBeSent])
+                # Send the users that still need the update
+                jsonUsersToBeSent: str = json.dumps([user.__dict__() for user in usersToBeSent])
 
-                    peer_socket.send(jsonUsersToBeSent.encode())
+                peer_socket.send(jsonUsersToBeSent.encode())
 
-                    #Optimize later I can't be bothered
-                    time.sleep(0.5)
+                #Optimize later I can't be bothered
+                time.sleep(0.5)
 
-                    sendFileTo(peer_socket, filePath)
+                sendFileTo(peer_socket, filePath)
 
-                    connectionSuccess = not connectionSuccess
+                connectionSuccess = not connectionSuccess
 
-                except (TimeoutError, InterruptedError, ConnectionRefusedError) as err:
-                    print("File Sync Update connection did not go through. Check the Client IP and Port")
-                    userSocket.close()
-                    userSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    pass
+            except (TimeoutError, InterruptedError, ConnectionRefusedError) as err:
+                print("File Sync Update connection did not go through. Check the Client IP and Port")
+                userSocket.close()
+                userSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                pass
 
 
 def clientSendRequest(peer_socket: socket, cRequest: CRequest | int) -> str:
