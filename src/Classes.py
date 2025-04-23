@@ -395,17 +395,16 @@ class Server:
             fileSize: int = os.stat(str(filePath)).st_size
             clientSocket.send(f"{fileSize}".encode())
 
-            with G_SyncFileLock:
-                for syncFile in g_FilesForSync:
-                    if syncFile == wantedSyncFile:
-                        syncFile.usersSubbed.append(clientPeerList)
+            for syncFile in g_FilesForSync:
+                if syncFile == wantedSyncFile:
+                    syncFile.usersSubbed.append(clientPeerList)
 
-                with open(filePath, 'rb') as f:
-                    while True:
-                        data = f.read(1024)
-                        if not data:
-                            break
-                        clientSocket.sendall(data)
+            with open(filePath, 'rb') as f:
+                while True:
+                    data = f.read(1024)
+                    if not data:
+                        break
+                    clientSocket.sendall(data)
 
         return True
 

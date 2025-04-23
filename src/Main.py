@@ -360,16 +360,8 @@ def initialConnect():
                 # An index used to edit data in the g_FilesForSync
                 # Adds server's File Sync List if not already in user's File Sync List
                 for fileSyncObj in [hf.sync_file_from_dict(item) for item in json.loads(serverFileSyncList)]:
-                    # if not any(fs.fileName == fileSyncObj.fileName for fs in Classes.g_FilesForSync):
-                    #     Classes.g_FilesForSync.append(fileSyncObj)
-                    prevIndex: int = 0
-                    for globalFS in prevG_FilesForSync:
-                        # If the server has a syncFile with the same name, get all the users subscribed to it
-                        if fileSyncObj.fileName == globalFS.fileName:
-                            Classes.g_FilesForSync[prevIndex].usersSubbed = fileSyncObj.usersSubbed
-                        elif fileSyncObj.fileName != globalFS.fileName:
-                            Classes.g_FilesForSync.append(fileSyncObj)
-                        prevIndex += 1
+                    if not any(fs.fileName == fileSyncObj.fileName for fs in Classes.g_FilesForSync):
+                        Classes.g_FilesForSync.append(fileSyncObj)
 
 
                 connectionSuccess = not connectionSuccess
