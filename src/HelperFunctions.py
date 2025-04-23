@@ -34,13 +34,15 @@ def sendFileTo(sending_socket: socket, filePath: Path):
     """
 
     fileSize: int = os.stat(str(filePath)).st_size
+    header: bytes = str(fileSize).zfill(10).encode()  # 10-byte length header
 
     # Debugging ------------
     if fileSize == 0:
         raise Exception("fileSize is 0 check your stuff")
     # ----------------
 
-    sending_socket.send(f"{fileSize}".encode())
+    sending_socket.sendall(header)
+    # sending_socket.send(f"{fileSize}".encode())
 
     with open(filePath, 'rb') as f:
         while True:
@@ -524,7 +526,6 @@ def sendFileSyncUpdate(fileName: str, filePath: Path, userAsPeerList: Peer, user
                     peer_socket.send(jsonUsersToBeSent.encode())
 
                     #Optimize later I can't be bothered
-                    time.sleep(0.5)
 
                     sendFileTo(peer_socket, filePath)
 
