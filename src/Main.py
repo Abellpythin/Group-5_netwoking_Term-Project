@@ -24,7 +24,7 @@ import HelperFunctions as hf
 # G for global variable
 # The port number is preemptively defined so no need to ask user
 G_MY_PORT: int = 59878
-G_MY_IP: str = ''
+G_MY_IP: str = ''  # Current IP Addr 10.33.16.109
 G_MY_USERNAME: str | None = "Debugger"
 G_MAX_CONNECTIONS: int = 3
 
@@ -115,7 +115,6 @@ def runPeer():
                   "3. Download Available File\n"
                   "4. List files available for subscription (file syncing service)\n"
                   "5. Save Subscribed File (Click this if you've edited a file in FilesForSync)\n"
-                  "n. Refresh PeerList (not implemented)\n"
                   "Press . to exit")
             userOption = input()
             print()
@@ -236,7 +235,6 @@ def checkFilesForSyncUpdates():
                 continue
 
         if g_userWantsToSave:
-            print(Classes.g_FilesForSync)
             # Checks each fileName
             for fn in fileNames:
                 filePath: Path = syncFileDir / fn

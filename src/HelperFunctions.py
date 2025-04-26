@@ -358,7 +358,7 @@ def handleDownloadFileRequest(clientAddress: tuple[str, int], serverAddress: tup
         print("Please enter a valid input.\n")
 
     downloadFile(userFileChoice, clientAddress, serverAddress)
-    print("File successfully downloaded")
+    #print("File successfully downloaded")
 
 
 def downloadFile(file: Classes.File, clientAddress: tuple[str, int], serverAddress: tuple[str, int]) -> None:
@@ -465,10 +465,10 @@ def sendFileSyncUpdate(fileName: str, filePath: Path, userAsPeerList: Peer, user
     :param usersToBeSent: A list of users that need to be sent the update.
     :return:
     """
-    print(f"Update, Users to be sent: {usersToBeSent}")
+    #print(f"Update, Users to be sent: {usersToBeSent}")
 
     if not usersToBeSent:
-        print("There are no users to send this update to")
+        #print("There are no users to send this update to")
         return
 
     userToSendTo: tuple[str, int] = usersToBeSent.pop(0).addr

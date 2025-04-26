@@ -455,8 +455,8 @@ class Server:
 
         if clientResponse:
             G_FileList.extend([file_from_dict(item) for item in json.loads(clientResponse)])
-        else:
-            print("Classes 342: File list client sent was empty")
+        #else:
+            #print("Classes 342: File list client sent was empty")
 
         return True
 
@@ -477,8 +477,8 @@ class Server:
             jsonFilesForSync: str = json.dumps([fs.__dict__() for fs in g_FilesForSync])
             clientSocket.send(jsonFilesForSync.encode())
 
-        else:
-            print("Classes 358: FilesForSync is empty.")
+        #else:
+            #print("Classes 358: FilesForSync is empty.")
 
         return True
 
