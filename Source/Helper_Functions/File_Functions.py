@@ -252,7 +252,6 @@ def receive_sync_files(connection_socket, sync_file_list):
 
     json_sync_file_list: str = received_data.decode('utf-8')
     if not json_sync_file_list or json_sync_file_list == '[]':
-        print(f"[DEBUG] from receive_sync_files", end=" ")
         print("An empty list of sync files were sent")
         return
 
@@ -422,7 +421,6 @@ def send_sync_file_update(sync_file, users_to_send_update: list):
     :return:
     """
     if not users_to_send_update:
-        print("[DEBUG from send_sync_file_update]")
         print("There are no users to send this update to")
         return
 

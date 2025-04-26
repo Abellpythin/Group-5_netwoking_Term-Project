@@ -70,7 +70,6 @@ def display_and_download_file(file_list: list):
     """
 
     if not file_list:
-        print("[DEBUG] no files in display_and_download_file method")
         print("No files available to download.\n")
 
     counter: int = 1
@@ -101,14 +100,12 @@ def display_and_download_file(file_list: list):
     server_address = user_file_choice.addr
 
     FF.download_file(user_file_choice, server_address)
-    print(f"[DEBUG] from display_and_download_file method")
     print("File successfully downloaded!")
 
 
 def display_and_subscribe_sync_file(available_sync_files, subscribed_available_files, user_as_peer):
     if not available_sync_files:
         print("There are no files available for subscription right now")
-        print("Press . to return")
         userPressesPeriod()
         return
 
@@ -140,7 +137,6 @@ def display_and_subscribe_sync_file(available_sync_files, subscribed_available_f
     FF.subscribe_to_file(user_sync_file_choice, user_as_peer, user_addr)
     available_sync_files.remove(user_sync_file_choice)
     subscribed_available_files.append(user_sync_file_choice)
-    print(f"[DEBUG] from display_and_download_file method")
     print("Sync File successfully downloaded!")
 
 

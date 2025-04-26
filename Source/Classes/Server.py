@@ -101,8 +101,6 @@ class Server:
                     with sync_file_lock:
                         self.send_Ok(connection_socket)
                         FF.receive_sync_files(connection_socket, available_sync_files)
-                        print(f"[DEBUG] available sync files in server match CRequest.SendSyncFiles: "
-                              f"{available_sync_files}")
 
                 case CRequest.RequestSyncFiles.name:
                     with sync_file_lock:

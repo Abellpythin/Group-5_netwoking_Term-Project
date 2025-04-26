@@ -137,14 +137,12 @@ def initial_connection():
 
                 received_data = FF.receive_data(user_socket, length_bytes)
 
-                print(received_data)
 
                 json_peer_list = received_data.decode('utf-8')
                 dict_peer_list = json.loads(json_peer_list)
                 peer_list = [Peer.from_dict(peer_dict) for peer_dict in dict_peer_list]
 
                 with PEER_LIST_LOCK:
-                    print(peer_list)
                     for peer in peer_list:
                         if peer != user_as_peer and peer not in g_peer_list:
                             g_peer_list.append(peer)
@@ -174,7 +172,6 @@ def initial_connection():
         with FILE_LOCK:
             # Send the file list to each peer in the network
             for peer in g_peer_list:
-                print(peer.username)
                 with create_connection_socket() as user_socket:
                     try:
                         user_socket.settimeout(INITIAL_CONNECTION_TIMEOUT)
@@ -402,7 +399,6 @@ def check_sync_file_updates():
                 sync_file_hash[fn] = get_sync_file_hash(sync_files_dir / fn)
 
         if g_user_save_sync_file:
-            print(sync_file_names)
             for fn in sync_file_names:
                 sync_file_path: Path = sync_files_dir / fn
 
@@ -416,20 +412,16 @@ def check_sync_file_updates():
                     this_sync_file: SyncFile = None
 
                     for sync_file in g_subscribed_sync_files:
-                        print(f"Comparing '{sync_file.filename}' to '{fn}'")
                         if sync_file.filename == fn:
                             subbed_users = sync_file.users_subbed
-                            print(f"Before filter, subbed users: {subbed_users}")
                             this_sync_file = sync_file
                             break
                     subbed_users = [user for user in subbed_users if user != user_as_peer]
 
                     if subbed_users:
                         with SYNC_FILE_LOCK:
-                            print(f"Subscribed user to this list {subbed_users}")
                             FF.send_sync_file_update(this_sync_file, subbed_users)
                     else:
-                        print("[DEBUG] run.py check_sync_file_updates function")
                         print("No user are subscribed to this file")
 
         g_user_save_sync_file = False
