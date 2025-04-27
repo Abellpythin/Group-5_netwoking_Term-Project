@@ -39,25 +39,34 @@ python version 3.12
 > their server is online, and you are ready to connect
 
 
+# P2P Network Application - README Summary
 
-# For A-lee-a when you do documentation
-> In case I forget, I'll list the major processes here and try to break
-> down everything as simple as possible so presenting is easy. There is 
-> no particular order of any of these, it's just stuff that should be 
-> covered in slides or diagrams
-> - (Clarification) Any peer currently in the P2P network ALWAYS has
-> its server on (runServer). The client side only connects to a server
-> when a user makes an explicit request for server info (file downloads,
-> peer list requests, synchronization, etc...)
-> - At least 2 users need to be online in order for the P2P network to 
-> function. The first user needs to start their server THEN WAIT for
-> the second client to connect their server. Only then should the first
-> client attempt to connect to the second client
-> - Every file is sent through bits
-> - The user has these available options
-> - 1. View Available Peers in Network
->   2. View Available Files in Network
->   3. Download Available Files
+>Key Clarifications:
+
+> Server & Client Behavior:
+
+ >- Server: Every peer in the network must keep their server (runServer) running at all times. 
+ >- Client: The client connects to another peer's server only when a user makes an explicit request (e.g., file downloads, peer list requests, synchronization). 
+ 
+> Network Initialization:
+>- At least two peers must be online for the network to function. 
+>- First peer: Starts their server and waits for the second peer to connect.
+>- Second peer: Connects their server to the first peer.
+>- Only after the second peer connects should the first peer attempt to connect back.
+ 
+>File Transfer:
+All files are transmitted in bits (binary data).
+
+>User Commands:
+>- Users can perform the following actions:
+>- View Available Peers – List all active peers in the network.
+>- View Available Files – List all shared files across the network.
+>- Download Available Files – Request and download a file from another peer.
+
+>Important Notes
+>- Always-on Server: A peer must keep its server running to stay in the network.
+>- Manual Client Connections: Client-side connections are triggered only by user requests.
+>- Two-Peer Minimum: The network requires at least two peers to function properly.
 
 
 ## Documentation Requirements 
@@ -108,7 +117,7 @@ python version 3.12
 > - `Brejon` had the most time to work on the project and works in large sessions, so Scrum Master
 > was the role that fit him best. When a problem occurred between two branches, it will be solved
 > when handed to him. 
-> - `Aalia` is the best at organization and readability in terms of the Scrum board. She also had
+> - `Aalia` is the best at organization and readability in terms of the Scrum board and Diagrams. She also had
 > the best understanding of the problem and what work needed to be prioritized
 > - `Carlos` was very efficient at producing code. Any task given to him was completed the week of.
 > All that was left to do with his code was adjusting it to match other merges.
@@ -171,3 +180,93 @@ The system’s activity diagram involves peers creating sockets, sharing files, 
 while the finite state machine (FSM) includes states like Online/Offline for peers and Listening for the server. 
 The File class manages states related to file paths and updates. Although the code provides a foundational structure, 
 it lacks full implementation details, such as handling incoming connections and messages, which are essential for a functional peer-to-peer network.
+
+## System Architecture: 
+[A server sending a new subscriber to another subscriber server Diagram.pdf](Diagrams/A%20server%20sending%20a%20new%20subscriber%20to%20another%20subscriber%20server%20Diagram.pdf)
+[A subscriber has updated a syncFile and is sending to subscriber servers Diagram.pdf](Diagrams/A%20subscriber%20has%20updated%20a%20syncFile%20and%20is%20sending%20to%20subscriber%20servers%20Diagram.pdf)
+[Client is requesting to subscribe to file diagram.pdf](Diagrams/Client%20is%20requesting%20to%20subscribe%20to%20file%20diagram.pdf)
+[Client Request Add Me.pdf](Diagrams/Client%20Request%20Add%20Me.pdf)
+[Client Request list of peers in network.pdf](Diagrams/Client%20Request%20list%20of%20peers%20in%20network.pdf)
+[Client sends available files for download to Sever Diagram.pdf](Diagrams/Client%20sends%20available%20files%20for%20download%20to%20Sever%20Diagram.pdf)
+[Client sends server available files ofr sync in network.pdf](Diagrams/Client%20sends%20server%20available%20files%20ofr%20sync%20in%20network.pdf)
+[Client wants files avaialble to sync with in network Diagram.pdf](Diagrams/Client%20wants%20files%20avaialble%20to%20sync%20with%20in%20network%20Diagram.pdf)
+[Client wants list of all available files in network Diagram.pdf](Diagrams/Client%20wants%20list%20of%20all%20available%20files%20in%20network%20Diagram.pdf)
+[Client wants to download file from this server Diagram.pdf](Diagrams/Client%20wants%20to%20download%20file%20from%20this%20server%20Diagram.pdf)
+[User Joined Network.pdf](Diagrams/User%20Joined%20Network.pdf)
+
+- System Architecture
+
+The diagrams above outlines the architecture of the peer-to-peer (P2P) network system, describing how different components interact to enable file sharing and synchronization among subscribers.
+
+- Core Components
+
+Server (Tracker/Coordinator):
+
+Maintains a registry of active peers and available files.
+
+Facilitates peer discovery and initial connections.
+
+Handles subscription requests and file synchronization updates.
+
+Subscriber (Peer/Client):
+
+Can request files, subscribe to updates, and share files with other peers.
+Synchronizes files with the network when updates occur.
+
+- Key Interactions & Workflows
+
+1. Peer Joining the Network
+
+User Joined Network.pdf
+
+A new peer connects to the server and registers itself.
+
+The server updates the network’s peer list and may notify existing peers.
+
+2. Peer Subscription & File Discovery
+
+Client Request Add Me.pdf:
+
+A client requests to subscribe to the network to receive updates.
+
+Client Request list of peers in network.pdf:
+
+A peer queries the server for the current list of active peers.
+
+Client wants list of all available files in network.pdf:
+
+A peer requests a list of shared files from the server.
+
+3. File Sharing & Synchronization
+
+Client sends available files for download to Server Diagram.pdf:
+
+A peer informs the server about files it is sharing.
+
+Client wants files available to sync with in network.pdf:
+
+A peer queries the server for files available for synchronization.
+
+A subscriber has updated a syncFile and is sending to subscriber servers.pdf:
+
+When a peer modifies a synchronized file, it propagates the update to other subscribed peers.
+
+4. File Download Requests
+
+Client wants to download file from this server.pdf:
+
+A peer requests a file directly from another peer (or the server, if acting as a source).
+
+5. Server-Managed Peer Connections
+
+Server sending a new subscriber to another subscriber server.pdf:
+
+The server facilitates direct connections between peers for efficient file transfers.
+
+- Flow Summary
+
+Peers register with the server to join the network.
+The server maintains metadata (peers, files) and assists in peer discovery.
+Peers synchronize files by notifying the server of changes, which then propagates updates.
+Direct P2P transfers occur for file downloads, reducing server load.
+This architecture ensures decentralized file sharing while maintaining coordination through a central server for peer discovery and synchronization management.

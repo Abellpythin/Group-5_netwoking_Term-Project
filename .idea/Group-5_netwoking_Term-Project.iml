@@ -2,7 +2,7 @@
 <module type="PYTHON_MODULE" version="4">
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$" />
-    <orderEntry type="jdk" jdkName="Python 3.12 (General_Use)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Group-5_netwoking_Term-Project-final" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="ProgrammingAssignment3" />
   </component>
