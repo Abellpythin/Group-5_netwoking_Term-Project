@@ -69,7 +69,7 @@ All files are transmitted in bits (binary data).
 >- Two-Peer Minimum: The network requires at least two peers to function properly.
 
 
-## Documentation Requirements 
+## Documentation Requirements :
 > # Design Process
 > The design process throughout this project was difficult to come up with to say the least.
 > In the beginning a lot of our time was spent on learning how to do what and then later 
