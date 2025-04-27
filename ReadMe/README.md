@@ -131,12 +131,8 @@ All files are transmitted in bits (binary data).
 > 
 > By doing this, we were able to push out code effectively
 > and managed to refactor the entire codebase in to a more readable and scalable application. 
->
-> # Our designed Protocol
-> 
-> 
 
-### Computer Networking Term Project 
+# System Architecture
 ![img.png](img.png)
 
  Main.py FSM Diagram:
@@ -181,18 +177,35 @@ while the finite state machine (FSM) includes states like Online/Offline for pee
 The File class manages states related to file paths and updates. Although the code provides a foundational structure, 
 it lacks full implementation details, such as handling incoming connections and messages, which are essential for a functional peer-to-peer network.
 
-## System Architecture: 
-[A server sending a new subscriber to another subscriber server Diagram.pdf](Diagrams/A%20server%20sending%20a%20new%20subscriber%20to%20another%20subscriber%20server%20Diagram.pdf)
-[A subscriber has updated a syncFile and is sending to subscriber servers Diagram.pdf](Diagrams/A%20subscriber%20has%20updated%20a%20syncFile%20and%20is%20sending%20to%20subscriber%20servers%20Diagram.pdf)
-[Client is requesting to subscribe to file diagram.pdf](Diagrams/Client%20is%20requesting%20to%20subscribe%20to%20file%20diagram.pdf)
-[Client Request Add Me.pdf](Diagrams/Client%20Request%20Add%20Me.pdf)
-[Client Request list of peers in network.pdf](Diagrams/Client%20Request%20list%20of%20peers%20in%20network.pdf)
-[Client sends available files for download to Sever Diagram.pdf](Diagrams/Client%20sends%20available%20files%20for%20download%20to%20Sever%20Diagram.pdf)
-[Client sends server available files ofr sync in network.pdf](Diagrams/Client%20sends%20server%20available%20files%20ofr%20sync%20in%20network.pdf)
-[Client wants files avaialble to sync with in network Diagram.pdf](Diagrams/Client%20wants%20files%20avaialble%20to%20sync%20with%20in%20network%20Diagram.pdf)
-[Client wants list of all available files in network Diagram.pdf](Diagrams/Client%20wants%20list%20of%20all%20available%20files%20in%20network%20Diagram.pdf)
-[Client wants to download file from this server Diagram.pdf](Diagrams/Client%20wants%20to%20download%20file%20from%20this%20server%20Diagram.pdf)
-[User Joined Network.pdf](Diagrams/User%20Joined%20Network.pdf)
+## System Architecture continued: 
+> We use different types of request to a server, in order to get certain data.
+
+    AddMe: The Client asks the server to add them to the network. The server will then add them to their list of peers
+           then send this client to others in the network
+
+    RequestPeerList: The client asks the server to send the list of peers in the P2P network
+
+    UserJoined: The client (which is actually a request from another peer server) sends a message indicating that
+                another peer has joined the server
+
+    SendFiles: The client is requesting to send files to this server
+
+    RequestFiles: The client is requesting for a list of available files in the network.
+
+    SendSyncFiles: The client is requesting to send SyncFiles to this server
+
+    RequestSyncFiles: The client is requesting for a list of available SyncFiles
+
+    DownloadFile: The client is requesting to download the file from the server
+
+    SubscribeFile: The client wants to subscribe to a file available in the network
+
+    UserSubscribed: A server has received a client who has subscribed to a syncFile, so this server is now sending an
+                    updated syncFile object for users also subscribed to the network
+
+    SyncFileUpdate: A user has updated a sync file and is sending the update to this server
+
+> A diagram for each type of client request can be found in the diagrams folder
 
 - System Architecture
 
